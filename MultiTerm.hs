@@ -22,9 +22,8 @@ class Term t where
   make     :: t -> Sub t -> t
   hom      :: (MakeHom (t -> t) (Distrib (Lift (Sub t))), Apply (Distrib (Lift (Sub t))) (Hom (Sub t)) (Hom (Sub t)), Choose (Hom (Sub t)) (Sub t), Term t) => (t -> t) -> t -> t
   hom f t = 
-    let s  = subterms t in   
     let fs = apply (makeHom (hom f) :: Distrib (Lift (Sub t))) fs in
-    f $ make t $ choose s fs
+    f $ make t $ choose (subterms t) fs
 
 infixr 5 :+:
 
