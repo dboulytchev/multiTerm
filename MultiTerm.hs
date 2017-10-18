@@ -44,33 +44,27 @@ type family Lift a where
   Lift [f]       = (f -> f) -> f -> f
   Lift (a :+: b) = (Dom (Lift a) :+: Dom (Lift b) -> Cod (Lift a) :+: Cod (Lift b))
 
-lift :: a -> Lift a
-lift = undefined
-
 type family Distrib a where
   Distrib (c -> a :+: b) = (c -> a) :+: (c -> b)
   Distrib (c -> a)       = c -> a
 
-distrib :: a -> Distrib a
-distrib = undefined
-
 class MakeHom0 f fs where
-  makeHom0 :: f {- -> fs-} -> fs
+  makeHom0 :: f -> fs
 
 instance (Choose c (Sub a), Term a) => MakeHom0 (t -> t) (c -> a -> a) where
-  makeHom0 f {-_-} c t = make t $ choose (subterms t) c
+  makeHom0 f c t = make t $ choose (subterms t) c
 
 instance {-# OVERLAPPING #-} (Choose c (Sub t), Term t) => MakeHom0 (t -> t) (c -> t -> t) where
-  makeHom0 f {-_-} _ x = f x
+  makeHom0 f _ x = f x
 
 class MakeHom f fs where
-  makeHom :: f {--> fs-} -> fs
+  makeHom :: f -> fs
 
 instance MakeHom0 f fs => MakeHom f fs where
   makeHom = makeHom0
 
 instance {-# OVERLAPPING #-} (MakeHom0 f fs, MakeHom f gs) => MakeHom f (fs :+: gs) where
-  makeHom f {-(fs :+: gs)-} = (makeHom0 f {-fs-}) :+: (makeHom f {-gs-})
+  makeHom f = makeHom0 f :+: makeHom f
 
 class Choose fs t where
   choose :: t -> fs -> t
