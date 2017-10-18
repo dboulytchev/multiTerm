@@ -8,7 +8,7 @@
 
 import MultiTerm
 
-data Expr = Var String | Const Int | Bop String Expr Expr | D Def Expr deriving Show
+data Expr = Var String | Const Int | Bop String Expr Expr | Let Def Expr deriving Show
 data Def  = Def String Expr deriving Show
 
 instance Term Def where
@@ -36,26 +36,20 @@ instance Term Expr where
   eq (Var     _) (Var     _) = True
   eq (Const   _) (Const   _) = True
   eq (Bop _ _ _) (Bop _ _ _) = True
-  eq (D   _ _  ) (D   _ _  ) = True
+  eq (Let _ _  ) (Let _ _  ) = True
   eq  _           _          = False
 
   subterms (Var _)     = [] :+: []
   subterms (Const _)   = [] :+: []
   subterms (Bop _ l r) = [l, r] :+: []
-  subterms (D   d e)   = [e] :+: [d]
+  subterms (Let   d e)   = [e] :+: [d]
 
   make t@(Var _  )  _               = t
   make t@(Const _)  _               = t
   make (Bop b _ _) ([l, r] :+: [] ) = Bop b l r
-  make (D   _ _  ) ([e]    :+: [d]) = D d e
+  make (Let _ _  ) ([e]    :+: [d]) = Let d e
 
-expr = Bop "+" (Var "a") (D (Def "b" (Bop "+" (Const 1) (Const 0))) (Bop "+" (Const 0) (Var "b")))
-
-homhom :: (Expr -> Expr) -> Expr -> Expr
-homhom f t = 
-  let s  = subterms t in 
-  let fs = apply (makeHom (homhom f) :: Distrib (Lift (Sub Expr))) fs in
-  f $ make t $ choose s fs
+expr = Bop "+" (Var "a") (Let (Def "b" (Bop "+" (Const 1) (Const 0))) (Bop "+" (Const 0) (Var "b")))
 
 elim0 = hom (\ t -> case t of
                       Bop "+" e (Const 0) -> e
