@@ -42,19 +42,34 @@ instance Term Expr where
   subterms (Var _)     = [] :+: []
   subterms (Const _)   = [] :+: []
   subterms (Bop _ l r) = [l, r] :+: []
-  subterms (Let   d e)   = [e] :+: [d]
+  subterms (Let   d e) = [e] :+: [d]
 
   make t@(Var _  )  _               = t
   make t@(Const _)  _               = t
   make (Bop b _ _) ([l, r] :+: [] ) = Bop b l r
   make (Let _ _  ) ([e]    :+: [d]) = Let d e
 
-expr = Bop "+" (Var "a") (Let (Def "b" (Bop "+" (Const 1) (Const 0))) (Bop "+" (Const 0) (Var "b")))
+elim0 = rewriteBU (\ t -> case t of
+                            Bop "+" e (Const 0) -> e
+                            Bop "+" (Const 0) e -> e
+                            _                   -> t
+                  )
 
-elim0 = hom (\ t -> case t of
-                      Bop "+" e (Const 0) -> e
-                      Bop "+" (Const 0) e -> e
-                      _                   -> t
-            )
+rename r = rewriteBU (\ t -> case t of 
+                              Var s             -> Var $ r s 
+                              Let (Def s e1) e2 -> Let (Def (r s) e1) e2
+                              _                 -> t 
+                     )
+                   
+expand = rewriteTD (\ t -> case t of
+                              Const n -> if n > 1 then Bop "+" (Const $ n-1) (Const 1) else t
+                              _       -> t
+                   )
 
-main = putStrLn $ show $ elim0 expr
+expr1 = Bop "+" (Var "a") (Let (Def "b" (Bop "+" (Const 1) (Const 0))) (Bop "+" (Const 0) (Var "b")))
+expr2 = Bop "+" (Var "a") (Let (Def "b" (Bop "+" (Const 7) (Const 0))) (Bop "+" (Const 6) (Var "b")))
+
+main = do
+  putStrLn $ show $ elim0 expr1
+  putStrLn $ show $ rename (++"_renamed") expr1
+  putStrLn $ show $ expand expr2

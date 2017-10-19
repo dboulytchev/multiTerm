@@ -15,15 +15,22 @@ import Data.List
 class Term t where
   type Var t :: *
   type Sub t :: *
-  subterms :: t -> Sub t
-  var      :: t -> Maybe (Var t)
-  binder   :: t -> Maybe (Var t)
-  eq       :: t -> t -> Bool
-  make     :: t -> Sub t -> t
-  hom      :: (MakeHom (t -> t) (Distrib (Lift (Sub t))), Apply (Distrib (Lift (Sub t))) (Hom (Sub t)) (Hom (Sub t)), Choose (Hom (Sub t)) (Sub t), Term t) => (t -> t) -> t -> t
-  hom f t = 
-    let fs = apply (makeHom (hom f) :: Distrib (Lift (Sub t))) fs in
+  subterms   :: t -> Sub t
+  var        :: t -> Maybe (Var t)
+  binder     :: t -> Maybe (Var t)
+  eq         :: t -> t -> Bool
+  make       :: t -> Sub t -> t
+  rewriteBU  :: (MakeHom (t -> t) (Distrib (Lift (Sub t))), Apply (Distrib (Lift (Sub t))) (Hom (Sub t)) (Hom (Sub t)), Choose (Hom (Sub t)) (Sub t), Term t) => (t -> t) -> t -> t
+  rewriteTD  :: (MakeHom (t -> t) (Distrib (Lift (Sub t))), Apply (Distrib (Lift (Sub t))) (Hom (Sub t)) (Hom (Sub t)), Choose (Hom (Sub t)) (Sub t), Term t) => (t -> t) -> t -> t
+
+  rewriteBU f t = 
+    let fs = apply (makeHom (rewriteBU f) :: Distrib (Lift (Sub t))) fs in
     f $ make t $ choose (subterms t) fs
+
+  rewriteTD f t = 
+    let fs = apply (makeHom (rewriteTD f) :: Distrib (Lift (Sub t))) fs in
+    let t' = f t in
+    make t' $  choose (subterms t') fs
 
 infixr 5 :+:
 

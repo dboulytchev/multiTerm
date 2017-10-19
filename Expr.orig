@@ -1,1 +1,3 @@
 Bop "+" (Var "a") (Let (Def "b" (Const 1)) (Var "b"))
+Bop "+" (Var "a_renamed") (Let (Def "b_renamed" (Bop "+" (Const 1) (Const 0))) (Bop "+" (Const 0) (Var "b_renamed")))
+Bop "+" (Var "a") (Let (Def "b" (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Const 1) (Const 1)) (Const 1)) (Const 1)) (Const 1)) (Const 1)) (Const 1)) (Const 0))) (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Const 1) (Const 1)) (Const 1)) (Const 1)) (Const 1)) (Const 1)) (Var "b")))
