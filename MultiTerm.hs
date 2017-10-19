@@ -22,55 +22,55 @@ class Term t where
   eq         :: t -> t -> Bool
   make       :: t -> Sub t -> t
 
-  rewriteBU  :: (
-                 MakeRewrite (t -> t) (ShallowRewrite (Sub t)), 
-                 Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
-                 Discriminate (Rewrite (Sub t)) (Sub t), 
-                 Term t
-                ) => (t -> t) -> t -> t
+  multiRewriteBottomUp  :: (
+                            MakeRewrite BottomUp (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
+                            Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
+                            Discriminate (Rewrite (Sub t)) (Sub t), 
+                            Subtype t (Sub t), 
+                            Term t
+                           ) => Rewrite (Sub t) -> t -> t
 
-  rewriteTD  :: (
-                 MakeRewrite (t -> t) (ShallowRewrite (Sub t)), 
-                 Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
-                 Discriminate (Rewrite (Sub t)) (Sub t), 
-                 Term t
-                ) => (t -> t) -> t -> t
+  multiRewriteTopDown  :: (
+                           MakeRewrite TopDown (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
+                           Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
+                           Discriminate (Rewrite (Sub t)) (Sub t), 
+                           Subtype t (Sub t), 
+                           Term t
+                          ) => Rewrite (Sub t) -> t -> t
 
-  rewriteAllBU  :: (
-                    MakeRewriteAll (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
-                    Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
-                    Discriminate (Rewrite (Sub t)) (Sub t), 
-                    Subtype t (Sub t), 
-                    Term t
-                   ) => Rewrite (Sub t) -> t -> t
+  rewriteBottomUp      :: (
+                           LiftRewrite (t -> t) (Rewrite (Sub t)),
+                           MakeRewrite BottomUp (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
+                           Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
+                           Discriminate (Rewrite (Sub t)) (Sub t), 
+                           Subtype t (Sub t), 
+                           Term t
+                          ) => (t -> t) -> t -> t
 
-  rewriteAllTD  :: (
-                    MakeRewriteAll (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
-                    Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
-                    Discriminate (Rewrite (Sub t)) (Sub t), 
-                    Subtype t (Sub t), 
-                    Term t
-                   ) => Rewrite (Sub t) -> t -> t
+  rewriteTopDown       :: (                 
+                           LiftRewrite (t -> t) (Rewrite (Sub t)),
+                           MakeRewrite TopDown (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
+                           Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
+                           Discriminate (Rewrite (Sub t)) (Sub t), 
+                           Subtype t (Sub t), 
+                           Term t
+                          ) => (t -> t) -> t -> t
 
-
-  rewriteAllBU f t = 
-    let fs = apply (makeRewriteAll f :: ShallowRewrite (Sub t)) fs in 
+  multiRewriteBottomUp f t = 
+    let fs = apply (makeRewrite BU f :: ShallowRewrite (Sub t)) fs in 
     let t' = make t $ discriminate (subterms t) fs in
     ((prj $ discriminate (inj t' :: Sub t) f) :: t) 
 
-  rewriteAllTD f t = 
-    let fs = apply (makeRewriteAll f :: ShallowRewrite (Sub t)) fs in 
+  multiRewriteTopDown f t = 
+    let fs = apply (makeRewrite TD f :: ShallowRewrite (Sub t)) fs in 
     let t' = ((prj $ discriminate (inj t :: Sub t) f) :: t) in
     make t' $ discriminate (subterms t') fs
 
-  rewriteBU f t = 
-    let fs = apply (makeRewrite (rewriteBU f) :: ShallowRewrite (Sub t)) fs in
-    f $ make t $ discriminate (subterms t) fs
+  rewriteBottomUp f t = multiRewriteBottomUp (liftRewrite f) t
+  rewriteTopDown  f t = multiRewriteTopDown  (liftRewrite f) t
 
-  rewriteTD f t = 
-    let fs = apply (makeRewrite (rewriteTD f) :: ShallowRewrite (Sub t)) fs in
-    let t' = f t in
-    make t' $  discriminate (subterms t') fs
+data BottomUp = BU
+data TopDown  = TD
 
 infixr 5 :+:
 
@@ -122,26 +122,29 @@ type family Distrib a where
 type family ShallowRewrite a where
   ShallowRewrite a = Distrib (Lift a)
 
-class MakeRewrite f fs where
-  makeRewrite :: f -> fs
+class LiftRewrite f fs where
+  liftRewrite :: f -> fs
 
-instance (Discriminate c (Sub a), Term a) => MakeRewrite (t -> t) (c -> a -> a) where
-  makeRewrite f c t = make t $ discriminate (subterms t) c
+instance LiftRewrite (t -> t) (a -> a) where
+  liftRewrite f t = t
 
-instance {-# OVERLAPPING #-} (Discriminate c (Sub t), Term t) => MakeRewrite (t -> t) (c -> t -> t) where
-  makeRewrite f _ x = f x
+instance {-# OVERLAPPING #-} LiftRewrite (t -> t) (t -> t) where
+  liftRewrite f x = f x
   
-instance (MakeRewrite f fs, MakeRewrite f gs) => MakeRewrite f (fs :+: gs) where
-  makeRewrite f = makeRewrite f :+: makeRewrite f
+instance (LiftRewrite f fs, LiftRewrite f gs) => LiftRewrite f (fs :+: gs) where
+  liftRewrite f = liftRewrite f :+: liftRewrite f
 
-class MakeRewriteAll f fs where
-  makeRewriteAll :: f -> fs
+class MakeRewrite dir f fs where
+  makeRewrite :: dir -> f -> fs
 
-instance (Discriminate c (Sub t), Term t) => MakeRewriteAll (t -> t) (c -> t -> t) where
-  makeRewriteAll f c = \ t -> let t' = f t in make t' $ discriminate (subterms t') c
+instance (Discriminate c (Sub t), Term t) => MakeRewrite BottomUp (t -> t) (c -> t -> t) where
+  makeRewrite dir f c = \ t -> f $ make t $ discriminate (subterms t) c -- let t' = f t in make t' $ discriminate (subterms t') c
 
-instance {-# OVERLAPPING #-} (MakeRewriteAll f fs, MakeRewriteAll g gs) => MakeRewriteAll (f :+: g) (fs :+: gs) where
-  makeRewriteAll (f :+: g) = makeRewriteAll f :+: makeRewriteAll g
+instance (Discriminate c (Sub t), Term t) => MakeRewrite TopDown (t -> t) (c -> t -> t) where
+  makeRewrite dir f c = \ t -> let t' = f t in make t' $ discriminate (subterms t') c
+
+instance {-# OVERLAPPING #-} (MakeRewrite d f fs, MakeRewrite d g gs) => MakeRewrite d (f :+: g) (fs :+: gs) where
+  makeRewrite dir (f :+: g) = makeRewrite dir f :+: makeRewrite dir g
 
 class Discriminate fs t where
   discriminate :: t -> fs -> t
