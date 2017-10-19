@@ -15,26 +15,91 @@ import Data.List
 class Term t where
   type Var t :: *
   type Sub t :: *
+
   subterms   :: t -> Sub t
   var        :: t -> Maybe (Var t)
   binder     :: t -> Maybe (Var t)
   eq         :: t -> t -> Bool
   make       :: t -> Sub t -> t
-  rewriteBU  :: (MakeHom (t -> t) (Distrib (Lift (Sub t))), Apply (Distrib (Lift (Sub t))) (Hom (Sub t)) (Hom (Sub t)), Choose (Hom (Sub t)) (Sub t), Term t) => (t -> t) -> t -> t
-  rewriteTD  :: (MakeHom (t -> t) (Distrib (Lift (Sub t))), Apply (Distrib (Lift (Sub t))) (Hom (Sub t)) (Hom (Sub t)), Choose (Hom (Sub t)) (Sub t), Term t) => (t -> t) -> t -> t
+
+  rewriteBU  :: (
+                 MakeRewrite (t -> t) (ShallowRewrite (Sub t)), 
+                 Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
+                 Discriminate (Rewrite (Sub t)) (Sub t), 
+                 Term t
+                ) => (t -> t) -> t -> t
+
+  rewriteTD  :: (
+                 MakeRewrite (t -> t) (ShallowRewrite (Sub t)), 
+                 Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
+                 Discriminate (Rewrite (Sub t)) (Sub t), 
+                 Term t
+                ) => (t -> t) -> t -> t
+
+  rewriteAllBU  :: (
+                    MakeRewriteAll (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
+                    Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
+                    Discriminate (Rewrite (Sub t)) (Sub t), 
+                    Subtype t (Sub t), 
+                    Term t
+                   ) => Rewrite (Sub t) -> t -> t
+
+  rewriteAllTD  :: (
+                    MakeRewriteAll (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
+                    Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
+                    Discriminate (Rewrite (Sub t)) (Sub t), 
+                    Subtype t (Sub t), 
+                    Term t
+                   ) => Rewrite (Sub t) -> t -> t
+
+
+  rewriteAllBU f t = 
+    let fs = apply (makeRewriteAll f :: ShallowRewrite (Sub t)) fs in 
+    let t' = make t $ discriminate (subterms t) fs in
+    ((prj $ discriminate (inj t' :: Sub t) f) :: t) 
+
+  rewriteAllTD f t = 
+    let fs = apply (makeRewriteAll f :: ShallowRewrite (Sub t)) fs in 
+    let t' = ((prj $ discriminate (inj t :: Sub t) f) :: t) in
+    make t' $ discriminate (subterms t') fs
 
   rewriteBU f t = 
-    let fs = apply (makeHom (rewriteBU f) :: Distrib (Lift (Sub t))) fs in
-    f $ make t $ choose (subterms t) fs
+    let fs = apply (makeRewrite (rewriteBU f) :: ShallowRewrite (Sub t)) fs in
+    f $ make t $ discriminate (subterms t) fs
 
   rewriteTD f t = 
-    let fs = apply (makeHom (rewriteTD f) :: Distrib (Lift (Sub t))) fs in
+    let fs = apply (makeRewrite (rewriteTD f) :: ShallowRewrite (Sub t)) fs in
     let t' = f t in
-    make t' $  choose (subterms t') fs
+    make t' $  discriminate (subterms t') fs
 
 infixr 5 :+:
 
 data h :+: t = h :+: t deriving Show
+
+class Default a where
+  value :: a
+
+instance Default [a] where
+  value = []
+
+instance (Default a, Default b) => Default (a :+: b) where
+  value = value :+: value
+
+class Subtype a b where
+  inj :: a -> b
+  prj :: b -> a
+
+instance Subtype a [a] where
+  inj  a  = [a]
+  prj [a] =  a 
+
+instance (Default c, Subtype a b) => Subtype a (c :+: b) where
+  inj a         = value :+: inj a
+  prj (_ :+: b) = prj b
+
+instance {-# OVERLAPPING #-} Default b => Subtype a ([a] :+: b) where
+  inj   a         = [a] :+: value
+  prj ([a] :+: _) =  a
 
 type family Dom a where
   Dom (a -> b) = a
@@ -42,9 +107,9 @@ type family Dom a where
 type family Cod a where
   Cod (a -> b) = b
 
-type family Hom a where
-  Hom [f]         = f -> f
-  Hom ([a] :+: b) = (a -> a) :+: Hom b
+type family Rewrite a where
+  Rewrite [f]         = f -> f
+  Rewrite ([a] :+: b) = (a -> a) :+: Rewrite b
 
 type family Lift a where
   Lift [f]       = (f -> f) -> f -> f
@@ -54,38 +119,44 @@ type family Distrib a where
   Distrib (c -> a :+: b) = (c -> a) :+: (c -> b)
   Distrib (c -> a)       = c -> a
 
-class MakeHom0 f fs where
-  makeHom0 :: f -> fs
+type family ShallowRewrite a where
+  ShallowRewrite a = Distrib (Lift a)
 
-instance (Choose c (Sub a), Term a) => MakeHom0 (t -> t) (c -> a -> a) where
-  makeHom0 f c t = make t $ choose (subterms t) c
+class MakeRewrite f fs where
+  makeRewrite :: f -> fs
 
-instance {-# OVERLAPPING #-} (Choose c (Sub t), Term t) => MakeHom0 (t -> t) (c -> t -> t) where
-  makeHom0 f _ x = f x
+instance (Discriminate c (Sub a), Term a) => MakeRewrite (t -> t) (c -> a -> a) where
+  makeRewrite f c t = make t $ discriminate (subterms t) c
 
-class MakeHom f fs where
-  makeHom :: f -> fs
+instance {-# OVERLAPPING #-} (Discriminate c (Sub t), Term t) => MakeRewrite (t -> t) (c -> t -> t) where
+  makeRewrite f _ x = f x
+  
+instance (MakeRewrite f fs, MakeRewrite f gs) => MakeRewrite f (fs :+: gs) where
+  makeRewrite f = makeRewrite f :+: makeRewrite f
 
-instance MakeHom0 f fs => MakeHom f fs where
-  makeHom = makeHom0
+class MakeRewriteAll f fs where
+  makeRewriteAll :: f -> fs
 
-instance {-# OVERLAPPING #-} (MakeHom0 f fs, MakeHom f gs) => MakeHom f (fs :+: gs) where
-  makeHom f = makeHom0 f :+: makeHom f
+instance (Discriminate c (Sub t), Term t) => MakeRewriteAll (t -> t) (c -> t -> t) where
+  makeRewriteAll f c = \ t -> let t' = f t in make t' $ discriminate (subterms t') c
 
-class Choose fs t where
-  choose :: t -> fs -> t
+instance {-# OVERLAPPING #-} (MakeRewriteAll f fs, MakeRewriteAll g gs) => MakeRewriteAll (f :+: g) (fs :+: gs) where
+  makeRewriteAll (f :+: g) = makeRewriteAll f :+: makeRewriteAll g
 
-instance Choose (a -> a) [a] where
-  choose x f = map f x
+class Discriminate fs t where
+  discriminate :: t -> fs -> t
 
-instance Choose g a => Choose (f :+: g) a where
-  choose x (_ :+: g) = choose x g  
+instance Discriminate (a -> a) [a] where
+  discriminate x f = map f x
 
-instance {-# OVERLAPPING #-} Choose ((a -> a) :+: g) [a] where
-  choose x (f :+: g) = map f x
+instance Discriminate g a => Discriminate (f :+: g) a where
+  discriminate x (_ :+: g) = discriminate x g  
 
-instance {-# OVERLAPPING #-} (Choose (fs :+: gs) a, Choose (fs :+: gs) b) => Choose (fs :+: gs) (a :+: b) where
-  choose (a :+: b) fsgs = (choose a fsgs) :+: (choose b fsgs)
+instance {-# OVERLAPPING #-} Discriminate ((a -> a) :+: g) [a] where
+  discriminate x (f :+: g) = map f x
+
+instance {-# OVERLAPPING #-} (Discriminate (fs :+: gs) a, Discriminate (fs :+: gs) b) => Discriminate (fs :+: gs) (a :+: b) where
+  discriminate (a :+: b) fsgs = (discriminate a fsgs) :+: (discriminate b fsgs)
 
 class Apply a b c | a -> b c where
   apply :: a -> b -> c
