@@ -75,6 +75,7 @@ expr1 = Bop "+" (Var "a") (Let (Def "b" (Bop "+" (Const 1) (Const 0))) (Bop "+" 
 expr2 = Bop "+" (Var "a") (Let (Def "b" (Bop "+" (Const 7) (Const 0))) (Bop "+" (Const 6) (Var "b")))
 
 main = do
+{-
   putStrLn $ show expr1
   putStrLn $ show expr2
   putStrLn $ show $ rewriteBottomUp elim0 expr1
@@ -82,7 +83,8 @@ main = do
   putStrLn $ show $ rewriteTopDown expand expr2
   putStrLn $ show $ multiRewriteBottomUp (elim0  :+: renameDef (++"_renamed")) expr1
   putStrLn $ show $ multiRewriteTopDown (expand :+: renameDef (++"_renamed")) expr2
+-}
   putStrLn $ show $ rewriteBottomUp eval (rewriteTopDown expand expr2)
   putStrLn $ show $ rewriteTopDown eval (rewriteTopDown expand expr2)
-  putStrLn $ show $ multiRewriteBottomUp (eval :+: id) (rewriteTopDown expand expr2)
+  --putStrLn $ show $ multiRewriteBottomUp (eval :+: id) (rewriteTopDown expand expr2)
 
