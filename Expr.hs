@@ -59,12 +59,21 @@ expr2 = Bop "+" (Var "a") (Bop "+" (Bop "+" (Const 7) (Const 0)) (Bop "+" (Const
 main = do  
   putStrLn $ show expr1
   putStrLn $ show expr2
+
   putStrLn $ show $ rewriteBottomUp elim0 expr1
   putStrLn $ show $ rewriteBottomUp (rename (++"_renamed")) expr1
   putStrLn $ show $ rewriteTopDown expand expr2
   putStrLn $ show $ rewriteBottomUp eval (rewriteTopDown expand expr2)
   putStrLn $ show $ rewriteTopDown eval (rewriteTopDown expand expr2)
+
   putStrLn $ show $ multiFoldBottomUp vars [] expr1
   putStrLn $ show $ multiFoldBottomUp vars [] expr2
+  putStrLn $ show $ multiFoldTopDown vars [] expr1
+  putStrLn $ show $ multiFoldTopDown vars [] expr2
+
+  putStrLn $ show $ foldBottomUp vars [] expr1
+  putStrLn $ show $ foldBottomUp vars [] expr2
+  putStrLn $ show $ foldTopDown vars [] expr1
+  putStrLn $ show $ foldTopDown vars [] expr2
 
 

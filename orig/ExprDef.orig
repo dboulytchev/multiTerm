@@ -10,3 +10,13 @@ Bop "+" (Var "a") (Let (Def "b" (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Bo
 Bop "+" (Var "a") (Let (Def "b" (Const 7)) (Bop "+" (Const 6) (Var "b")))
 ["b","a"]
 ["b","a"]
+["b","a","b","a"]
+["b","a","b","a"]
+["b","a"]
+["b","a"]
+["b","a","b","a"]
+["b","a","b","a"]
+["a"]
+["a","a"]
+["a"]
+["a","a"]

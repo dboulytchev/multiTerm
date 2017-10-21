@@ -9,6 +9,7 @@
 
 import MultiTerm
 import Debug.Trace
+import Data.List
 
 data Expr = Var String | Const Int | Bop String Expr Expr | Let Def Expr deriving Show
 data Def  = Def String Expr deriving Show
@@ -79,9 +80,12 @@ vars a t = case t of
              Var v -> v:a         
              _     -> a
 
+varsDef a (Def v e) = v `delete` a
+
 main = do
   putStrLn $ show expr1
   putStrLn $ show expr2
+
   putStrLn $ show $ rewriteBottomUp elim0 expr1
   putStrLn $ show $ rewriteBottomUp (rename (++"_renamed")) expr1
   putStrLn $ show $ rewriteTopDown expand expr2
@@ -90,6 +94,21 @@ main = do
   putStrLn $ show $ rewriteBottomUp eval (rewriteTopDown expand expr2)
   putStrLn $ show $ rewriteTopDown eval (rewriteTopDown expand expr2)
   putStrLn $ show $ multiRewriteBottomUp (eval :+: id) (rewriteTopDown expand expr2)
+
   putStrLn $ show $ multiFoldBottomUp (vars :+: (\ c _ -> c)) [] expr1
   putStrLn $ show $ multiFoldBottomUp (vars :+: (\ c _ -> c)) [] expr2
+  putStrLn $ show $ multiFoldTopDown  (vars :+: (\ c _ -> c)) [] expr1
+  putStrLn $ show $ multiFoldTopDown  (vars :+: (\ c _ -> c)) [] expr2
 
+  putStrLn $ show $ foldBottomUp vars [] expr1
+  putStrLn $ show $ foldBottomUp vars [] expr2
+  putStrLn $ show $ foldTopDown vars [] expr1
+  putStrLn $ show $ foldTopDown vars [] expr2
+
+  putStrLn $ show $ multiFoldBottomUp (vars :+: varsDef) [] expr1
+  putStrLn $ show $ multiFoldTopDown  (vars :+: varsDef) [] expr1
+
+  putStrLn $ show $ multiFoldBottomUp (vars :+: varsDef) [] expr2
+  putStrLn $ show $ multiFoldTopDown  (vars :+: varsDef) [] expr2
+
+  

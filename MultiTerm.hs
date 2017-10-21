@@ -72,6 +72,24 @@ class Term t where
                            Term t
                           ) => (Fold (Sub t) a) -> a -> t -> a
 
+  foldBottomUp         :: (                           
+                           LiftFold (a -> t -> a) (Fold (Sub t) a),
+                           MakeFold BottomUp (Fold (Sub t) a) (ShallowFold (Sub t) a), 
+                           Apply (ShallowFold (Sub t) a) (Fold (Sub t) a) (Fold (Sub t) a), 
+                           DiscriminateFold (Fold (Sub t) a) a (Sub t), 
+                           Subtype t (Sub t), 
+                           Term t
+                          ) => (a -> t -> a) -> a -> t -> a
+
+  foldTopDown          :: (                           
+                           LiftFold (a -> t -> a) (Fold (Sub t) a),
+                           MakeFold TopDown (Fold (Sub t) a) (ShallowFold (Sub t) a), 
+                           Apply (ShallowFold (Sub t) a) (Fold (Sub t) a) (Fold (Sub t) a), 
+                           DiscriminateFold (Fold (Sub t) a) a (Sub t), 
+                           Subtype t (Sub t), 
+                           Term t
+                          ) => (a -> t -> a) -> a -> t -> a
+
   multiRewriteBottomUp f t = 
     let fs = apply (makeRewrite BU f :: ShallowRewrite (Sub t)) fs in 
     let t' = make t $ discriminateRewrite (subterms t) fs in
@@ -93,6 +111,9 @@ class Term t where
   multiFoldTopDown f (a :: a) t = 
     let fs = apply (makeFold TD f :: ShallowFold (Sub t) a) fs in
     discriminateFold (subterms t) (discriminateFold (inj t :: Sub t) a fs) fs     
+
+  foldBottomUp f (a :: a) t = multiFoldBottomUp (liftFold f) a t
+  foldTopDown  f (a :: a) t = multiFoldTopDown  (liftFold f) a t
 
 data BottomUp = BU
 data TopDown  = TD
