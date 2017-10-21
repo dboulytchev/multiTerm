@@ -5,3 +5,5 @@ Bop "+" (Var "a_renamed") (Bop "+" (Bop "+" (Const 1) (Const 0)) (Bop "+" (Const
 Bop "+" (Var "a") (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Const 1) (Const 1)) (Const 1)) (Const 1)) (Const 1)) (Const 1)) (Const 1)) (Const 0)) (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Const 1) (Const 1)) (Const 1)) (Const 1)) (Const 1)) (Const 1)) (Var "b")))
 Bop "+" (Var "a") (Bop "+" (Const 7) (Bop "+" (Const 6) (Var "b")))
 Bop "+" (Var "a") (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Const 2) (Const 1)) (Const 1)) (Const 1)) (Const 1)) (Const 1)) (Const 0)) (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Const 2) (Const 1)) (Const 1)) (Const 1)) (Const 1)) (Var "b")))
+["b","a"]
+["b","a"]

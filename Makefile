@@ -3,7 +3,7 @@ GHC=ghc
 
 all: $(TESTS)
 
-test: $(TESTS)
+check: $(TESTS) 
 	@for f in $(TESTS) ; do \
 	     ./$$f > $$f.log && \
 	     if diff orig/$$f.orig $$f.log > $$ff.log.diff ; \
@@ -15,7 +15,7 @@ test: $(TESTS)
 clean:
 	rm -Rf *~  $(TESTS) *.log *.hi *.o
 
-%: %.hs
+%: %.hs MultiTerm.hs
 	$(GHC) -o $@ $<
 
 

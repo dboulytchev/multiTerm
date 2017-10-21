@@ -49,6 +49,10 @@ eval t = case t of
            Bop "+" (Const a) (Const b) -> Const $ a+b
            _                           -> t
 
+vars a t = case t of
+             Var v -> v:a         
+             _     -> a
+
 expr1 = Bop "+" (Var "a") (Bop "+" (Bop "+" (Const 1) (Const 0)) (Bop "+" (Const 0) (Var "b")))
 expr2 = Bop "+" (Var "a") (Bop "+" (Bop "+" (Const 7) (Const 0)) (Bop "+" (Const 6) (Var "b")))
 
@@ -60,5 +64,7 @@ main = do
   putStrLn $ show $ rewriteTopDown expand expr2
   putStrLn $ show $ rewriteBottomUp eval (rewriteTopDown expand expr2)
   putStrLn $ show $ rewriteTopDown eval (rewriteTopDown expand expr2)
+  putStrLn $ show $ multiFoldBottomUp vars [] expr1
+  putStrLn $ show $ multiFoldBottomUp vars [] expr2
 
 

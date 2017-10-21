@@ -5,6 +5,7 @@
 {-# LANGUAGE TypeOperators          #-}
 {-# LANGUAGE UndecidableInstances   #-}
 {-# LANGUAGE TypeFamilies           #-}
+{-# LANGUAGE ScopedTypeVariables    #-}
 
 import MultiTerm
 import Debug.Trace
@@ -74,6 +75,10 @@ eval t = case t of
 expr1 = Bop "+" (Var "a") (Let (Def "b" (Bop "+" (Const 1) (Const 0))) (Bop "+" (Const 0) (Var "b")))
 expr2 = Bop "+" (Var "a") (Let (Def "b" (Bop "+" (Const 7) (Const 0))) (Bop "+" (Const 6) (Var "b")))
 
+vars a t = case t of
+             Var v -> v:a         
+             _     -> a
+
 main = do
   putStrLn $ show expr1
   putStrLn $ show expr2
@@ -85,4 +90,6 @@ main = do
   putStrLn $ show $ rewriteBottomUp eval (rewriteTopDown expand expr2)
   putStrLn $ show $ rewriteTopDown eval (rewriteTopDown expand expr2)
   putStrLn $ show $ multiRewriteBottomUp (eval :+: id) (rewriteTopDown expand expr2)
+  putStrLn $ show $ multiFoldBottomUp (vars :+: (\ c _ -> c)) [] expr1
+  putStrLn $ show $ multiFoldBottomUp (vars :+: (\ c _ -> c)) [] expr2
 
