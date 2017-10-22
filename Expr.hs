@@ -10,6 +10,7 @@ import MultiTerm
 import Debug.Trace
 
 data Expr = Var String | Const Int | Bop String Expr Expr deriving Show
+
 instance Term Expr where
   type Var Expr = String
   type Sub Expr = [Expr] 
@@ -76,4 +77,6 @@ main = do
   putStrLn $ show $ foldTopDown vars [] expr1
   putStrLn $ show $ foldTopDown vars [] expr2
 
+  putStrLn $ show $ fv expr1
+  putStrLn $ show $ fv expr2
 

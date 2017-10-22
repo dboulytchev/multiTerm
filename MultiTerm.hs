@@ -90,6 +90,16 @@ class Term t where
                            Term t
                           ) => (a -> t -> a) -> a -> t -> a
 
+  fv                   :: (                   
+                           Eq (Var t),
+                           MakeFV (Fold (Sub t) [Var t]),
+                           MakeFold BottomUp (Fold (Sub t) [Var t]) (ShallowFold (Sub t) [Var t]), 
+                           Apply (ShallowFold (Sub t) [Var t]) (Fold (Sub t) [Var t]) (Fold (Sub t) [Var t]), 
+                           DiscriminateFold (Fold (Sub t) [Var t]) [Var t] (Sub t), 
+                           Subtype t (Sub t), 
+                           Term t
+                          ) => t -> [Var t]
+
   multiRewriteBottomUp f t = 
     let fs = apply (makeRewrite BU f :: ShallowRewrite (Sub t)) fs in 
     let t' = make t $ discriminateRewrite (subterms t) fs in
@@ -114,6 +124,8 @@ class Term t where
 
   foldBottomUp f (a :: a) t = multiFoldBottomUp (liftFold f) a t
   foldTopDown  f (a :: a) t = multiFoldTopDown  (liftFold f) a t
+
+  fv t = nub $ multiFoldBottomUp (makeFV :: Fold (Sub t) [Var t]) [] t
 
 data BottomUp = BU
 data TopDown  = TD
@@ -265,3 +277,16 @@ instance Apply (a -> b) a b where
 
 instance {-# OVERLAPPING #-} Apply g b c' => Apply ((b -> c) :+: g) b (c :+: c') where
   apply (f :+: g) b = f b :+: apply g b
+
+class MakeFV fs where
+  makeFV :: fs
+
+instance (Eq v, Term t, v ~ Var t) => MakeFV ([v] -> t -> [v]) where
+  makeFV a t = case var t of
+                 Just  v -> v : a
+                 Nothing -> case binder t of
+                              Just v  -> filter (/= v) a
+                              Nothing -> a
+
+instance (MakeFV f, MakeFV g) => MakeFV (f :+: g) where
+  makeFV = makeFV :+: makeFV 

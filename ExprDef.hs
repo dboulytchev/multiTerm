@@ -111,4 +111,6 @@ main = do
   putStrLn $ show $ multiFoldBottomUp (vars :+: varsDef) [] expr2
   putStrLn $ show $ multiFoldTopDown  (vars :+: varsDef) [] expr2
 
+  putStrLn $ show $ fv expr1
+  putStrLn $ show $ fv expr2
   

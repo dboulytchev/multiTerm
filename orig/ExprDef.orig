@@ -20,3 +20,5 @@ Bop "+" (Var "a") (Let (Def "b" (Const 7)) (Bop "+" (Const 6) (Var "b")))
 ["a","a"]
 ["a"]
 ["a","a"]
+["a"]
+["a"]
