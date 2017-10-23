@@ -26,16 +26,14 @@ class Term t where
                             MakeRewrite BottomUp (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
                             Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
                             DiscriminateRewrite (Rewrite (Sub t)) (Sub t), 
-                            Subtype t (Sub t), 
-                            Term t
+                            Subtype t (Sub t)
                            ) => Rewrite (Sub t) -> t -> t
 
   multiRewriteTopDown  :: (
                            MakeRewrite TopDown (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
                            Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
                            DiscriminateRewrite (Rewrite (Sub t)) (Sub t), 
-                           Subtype t (Sub t), 
-                           Term t
+                           Subtype t (Sub t)
                           ) => Rewrite (Sub t) -> t -> t
 
   rewriteBottomUp      :: (
@@ -43,8 +41,7 @@ class Term t where
                            MakeRewrite BottomUp (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
                            Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
                            DiscriminateRewrite (Rewrite (Sub t)) (Sub t), 
-                           Subtype t (Sub t), 
-                           Term t
+                           Subtype t (Sub t)
                           ) => (t -> t) -> t -> t
 
   rewriteTopDown       :: (                 
@@ -52,24 +49,21 @@ class Term t where
                            MakeRewrite TopDown (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
                            Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
                            DiscriminateRewrite (Rewrite (Sub t)) (Sub t), 
-                           Subtype t (Sub t), 
-                           Term t
+                           Subtype t (Sub t)
                           ) => (t -> t) -> t -> t
 
   multiFoldBottomUp    :: (                           
                            MakeFold BottomUp (Fold (Sub t) a) (ShallowFold (Sub t) a), 
                            Apply (ShallowFold (Sub t) a) (Fold (Sub t) a) (Fold (Sub t) a), 
                            DiscriminateFold (Fold (Sub t) a) a (Sub t), 
-                           Subtype t (Sub t), 
-                           Term t
+                           Subtype t (Sub t)
                           ) => (Fold (Sub t) a) -> a -> t -> a
 
   multiFoldTopDown     :: (                           
                            MakeFold TopDown (Fold (Sub t) a) (ShallowFold (Sub t) a), 
                            Apply (ShallowFold (Sub t) a) (Fold (Sub t) a) (Fold (Sub t) a), 
                            DiscriminateFold (Fold (Sub t) a) a (Sub t), 
-                           Subtype t (Sub t), 
-                           Term t
+                           Subtype t (Sub t)
                           ) => (Fold (Sub t) a) -> a -> t -> a
 
   foldBottomUp         :: (                           
@@ -77,8 +71,7 @@ class Term t where
                            MakeFold BottomUp (Fold (Sub t) a) (ShallowFold (Sub t) a), 
                            Apply (ShallowFold (Sub t) a) (Fold (Sub t) a) (Fold (Sub t) a), 
                            DiscriminateFold (Fold (Sub t) a) a (Sub t), 
-                           Subtype t (Sub t), 
-                           Term t
+                           Subtype t (Sub t)
                           ) => (a -> t -> a) -> a -> t -> a
 
   foldTopDown          :: (                           
@@ -86,8 +79,7 @@ class Term t where
                            MakeFold TopDown (Fold (Sub t) a) (ShallowFold (Sub t) a), 
                            Apply (ShallowFold (Sub t) a) (Fold (Sub t) a) (Fold (Sub t) a), 
                            DiscriminateFold (Fold (Sub t) a) a (Sub t), 
-                           Subtype t (Sub t), 
-                           Term t
+                           Subtype t (Sub t)
                           ) => (a -> t -> a) -> a -> t -> a
 
   fv                   :: (                   
@@ -96,9 +88,17 @@ class Term t where
                            MakeFold BottomUp (Fold (Sub t) [Var t]) (ShallowFold (Sub t) [Var t]), 
                            Apply (ShallowFold (Sub t) [Var t]) (Fold (Sub t) [Var t]) (Fold (Sub t) [Var t]), 
                            DiscriminateFold (Fold (Sub t) [Var t]) [Var t] (Sub t), 
-                           Subtype t (Sub t), 
-                           Term t
+                           Subtype t (Sub t)
                           ) => t -> [Var t]
+
+  subst                :: (
+                           Eq (Var t),
+                           LiftRewrite (t -> t) (Rewrite (Sub t)),
+                           MakeRewrite BottomUp (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
+                           Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
+                           DiscriminateRewrite (Rewrite (Sub t)) (Sub t), 
+                           Subtype t (Sub t)
+                          ) => t -> Var t -> t -> t
 
   multiRewriteBottomUp f t = 
     let fs = apply (makeRewrite BU f :: ShallowRewrite (Sub t)) fs in 
@@ -126,6 +126,11 @@ class Term t where
   foldTopDown  f (a :: a) t = multiFoldTopDown  (liftFold f) a t
 
   fv t = nub $ multiFoldBottomUp (makeFV :: Fold (Sub t) [Var t]) [] t
+
+  subst t x s = rewriteBottomUp (\ t' -> case var t' of
+                                           Just y -> if y == x then s else t'
+                                           _      -> t'
+                                ) t
 
 data BottomUp = BU
 data TopDown  = TD
@@ -290,3 +295,4 @@ instance (Eq v, Term t, v ~ Var t) => MakeFV ([v] -> t -> [v]) where
 
 instance (MakeFV f, MakeFV g) => MakeFV (f :+: g) where
   makeFV = makeFV :+: makeFV 
+

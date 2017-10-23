@@ -15,3 +15,5 @@ Bop "+" (Var "a") (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Bop "+" (Bop "+"
 ["b","a","b","a"]
 ["b","a"]
 ["b","a"]
+Bop "+" (Bop "+" (Var "a") (Const 4)) (Bop "+" (Bop "+" (Const 1) (Const 0)) (Bop "+" (Const 0) (Var "b")))
+Bop "+" (Var "a") (Bop "+" (Bop "+" (Const 7) (Const 0)) (Bop "+" (Const 6) (Bop "+" (Var "b") (Const 4))))

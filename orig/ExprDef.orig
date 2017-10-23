@@ -22,3 +22,5 @@ Bop "+" (Var "a") (Let (Def "b" (Const 7)) (Bop "+" (Const 6) (Var "b")))
 ["a","a"]
 ["a"]
 ["a"]
+Bop "+" (Bop "+" (Var "a") (Const 4)) (Let (Def "b" (Bop "+" (Const 1) (Const 0))) (Bop "+" (Const 0) (Var "b")))
+Bop "+" (Var "a") (Let (Def "b" (Bop "+" (Const 7) (Const 0))) (Bop "+" (Const 6) (Bop "+" (Var "b") (Const 4))))

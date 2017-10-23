@@ -80,3 +80,6 @@ main = do
   putStrLn $ show $ fv expr1
   putStrLn $ show $ fv expr2
 
+  putStrLn $ show $ subst expr1 "a" (Bop "+" (Var "a") (Const 4))
+  putStrLn $ show $ subst expr2 "b" (Bop "+" (Var "b") (Const 4))
+
