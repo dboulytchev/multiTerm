@@ -100,6 +100,15 @@ class Term t where
                            Subtype t (Sub t)
                           ) => t -> Var t -> t -> t
 
+  cas                  :: (
+                           Eq (Var t),
+                           LiftRewrite (t -> t) (Rewrite (Sub t)),
+                           MakeRewrite TopDown (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
+                           Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
+                           DiscriminateRewrite (Rewrite (Sub t)) (Sub t), 
+                           Subtype t (Sub t)
+                          ) => [Var t] -> t -> Var t -> t -> t
+
   multiRewriteBottomUp f t = 
     let fs = apply (makeRewrite BU f :: ShallowRewrite (Sub t)) fs in 
     let t' = make t $ discriminateRewrite (subterms t) fs in
@@ -131,7 +140,19 @@ class Term t where
                                            Just y -> if y == x then s else t'
                                            _      -> t'
                                 ) t
+{-
+  cas vs t x s = subst (rename t [] $ fv s) x s where
+    rename t rs fvs = rewriteTopDown
+      
 
+
+rewriteTopDown (\ t' -> case var t' of
+                                           Just y -> if y == x then s else t'
+                                           _      -> t'
+                                ) t             
+-}
+ 
+data Direction = TopDown | BottomUp
 data BottomUp = BU
 data TopDown  = TD
 
