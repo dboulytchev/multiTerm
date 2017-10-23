@@ -61,25 +61,24 @@ main = do
   putStrLn $ show expr1
   putStrLn $ show expr2
 
-  putStrLn $ show $ rewriteBottomUp elim0 expr1
-  putStrLn $ show $ rewriteBottomUp (rename (++"_renamed")) expr1
-  putStrLn $ show $ rewriteTopDown expand expr2
-  putStrLn $ show $ rewriteBottomUp eval (rewriteTopDown expand expr2)
-  putStrLn $ show $ rewriteTopDown eval (rewriteTopDown expand expr2)
+  putStrLn $ show $ rewrite BottomUp elim0 expr1
+  putStrLn $ show $ rewrite BottomUp (rename (++"_renamed")) expr1
+  putStrLn $ show $ rewrite TopDown expand expr2
+  putStrLn $ show $ rewrite BottomUp eval (rewrite TopDown expand expr2)
+  putStrLn $ show $ rewrite TopDown eval (rewrite TopDown expand expr2)
 
-  putStrLn $ show $ multiFoldBottomUp vars [] expr1
-  putStrLn $ show $ multiFoldBottomUp vars [] expr2
-  putStrLn $ show $ multiFoldTopDown vars [] expr1
-  putStrLn $ show $ multiFoldTopDown vars [] expr2
+  putStrLn $ show $ multiFold BottomUp vars [] expr1
+  putStrLn $ show $ multiFold BottomUp vars [] expr2
+  putStrLn $ show $ multiFold TopDown vars [] expr1
+  putStrLn $ show $ multiFold TopDown vars [] expr2
 
-  putStrLn $ show $ foldBottomUp vars [] expr1
-  putStrLn $ show $ foldBottomUp vars [] expr2
-  putStrLn $ show $ foldTopDown vars [] expr1
-  putStrLn $ show $ foldTopDown vars [] expr2
+  putStrLn $ show $ fold BottomUp vars [] expr1
+  putStrLn $ show $ fold BottomUp vars [] expr2
+  putStrLn $ show $ fold TopDown vars [] expr1
+  putStrLn $ show $ fold TopDown vars [] expr2
 
   putStrLn $ show $ fv expr1
   putStrLn $ show $ fv expr2
 
   putStrLn $ show $ subst expr1 "a" (Bop "+" (Var "a") (Const 4))
   putStrLn $ show $ subst expr2 "b" (Bop "+" (Var "b") (Const 4))
-

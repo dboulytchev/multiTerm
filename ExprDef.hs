@@ -86,30 +86,30 @@ main = do
   putStrLn $ show expr1
   putStrLn $ show expr2
 
-  putStrLn $ show $ rewriteBottomUp elim0 expr1
-  putStrLn $ show $ rewriteBottomUp (rename (++"_renamed")) expr1
-  putStrLn $ show $ rewriteTopDown expand expr2
-  putStrLn $ show $ multiRewriteBottomUp (elim0  :+: renameDef (++"_renamed")) expr1
-  putStrLn $ show $ multiRewriteTopDown (expand :+: renameDef (++"_renamed")) expr2
-  putStrLn $ show $ rewriteBottomUp eval (rewriteTopDown expand expr2)
-  putStrLn $ show $ rewriteTopDown eval (rewriteTopDown expand expr2)
-  putStrLn $ show $ multiRewriteBottomUp (eval :+: id) (rewriteTopDown expand expr2)
+  putStrLn $ show $ rewrite BottomUp elim0 expr1
+  putStrLn $ show $ rewrite BottomUp (rename (++"_renamed")) expr1
+  putStrLn $ show $ rewrite TopDown expand expr2
+  putStrLn $ show $ multiRewrite BottomUp (elim0  :+: renameDef (++"_renamed")) expr1
+  putStrLn $ show $ multiRewrite TopDown (expand :+: renameDef (++"_renamed")) expr2
+  putStrLn $ show $ rewrite BottomUp eval (rewrite TopDown expand expr2)
+  putStrLn $ show $ rewrite TopDown eval (rewrite TopDown expand expr2)
+  putStrLn $ show $ multiRewrite BottomUp (eval :+: id) (rewrite TopDown expand expr2)
 
-  putStrLn $ show $ multiFoldBottomUp (vars :+: (\ c _ -> c)) [] expr1
-  putStrLn $ show $ multiFoldBottomUp (vars :+: (\ c _ -> c)) [] expr2
-  putStrLn $ show $ multiFoldTopDown  (vars :+: (\ c _ -> c)) [] expr1
-  putStrLn $ show $ multiFoldTopDown  (vars :+: (\ c _ -> c)) [] expr2
+  putStrLn $ show $ multiFold BottomUp (vars :+: (\ c _ -> c)) [] expr1
+  putStrLn $ show $ multiFold BottomUp (vars :+: (\ c _ -> c)) [] expr2
+  putStrLn $ show $ multiFold TopDown  (vars :+: (\ c _ -> c)) [] expr1
+  putStrLn $ show $ multiFold TopDown  (vars :+: (\ c _ -> c)) [] expr2
 
-  putStrLn $ show $ foldBottomUp vars [] expr1
-  putStrLn $ show $ foldBottomUp vars [] expr2
-  putStrLn $ show $ foldTopDown vars [] expr1
-  putStrLn $ show $ foldTopDown vars [] expr2
+  putStrLn $ show $ fold BottomUp vars [] expr1
+  putStrLn $ show $ fold BottomUp vars [] expr2
+  putStrLn $ show $ fold TopDown vars [] expr1
+  putStrLn $ show $ fold TopDown vars [] expr2
 
-  putStrLn $ show $ multiFoldBottomUp (vars :+: varsDef) [] expr1
-  putStrLn $ show $ multiFoldTopDown  (vars :+: varsDef) [] expr1
+  putStrLn $ show $ multiFold BottomUp (vars :+: varsDef) [] expr1
+  putStrLn $ show $ multiFold TopDown  (vars :+: varsDef) [] expr1
 
-  putStrLn $ show $ multiFoldBottomUp (vars :+: varsDef) [] expr2
-  putStrLn $ show $ multiFoldTopDown  (vars :+: varsDef) [] expr2
+  putStrLn $ show $ multiFold BottomUp (vars :+: varsDef) [] expr2
+  putStrLn $ show $ multiFold TopDown  (vars :+: varsDef) [] expr2
 
   putStrLn $ show $ fv expr1
   putStrLn $ show $ fv expr2

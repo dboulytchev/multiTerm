@@ -22,124 +22,89 @@ class Term t where
   eq         :: t -> t -> Bool
   make       :: t -> Sub t -> t
 
-  multiRewriteBottomUp  :: (
-                            MakeRewrite BottomUp (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
-                            Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
-                            DiscriminateRewrite (Rewrite (Sub t)) (Sub t), 
-                            Subtype t (Sub t)
-                           ) => Rewrite (Sub t) -> t -> t
+  multiRewrite  :: (
+                    MakeRewrite (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
+                    Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
+                    DiscriminateRewrite (Rewrite (Sub t)) (Sub t), 
+                    Subtype t (Sub t)
+                   ) => Direction -> Rewrite (Sub t) -> t -> t
 
-  multiRewriteTopDown  :: (
-                           MakeRewrite TopDown (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
-                           Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
-                           DiscriminateRewrite (Rewrite (Sub t)) (Sub t), 
-                           Subtype t (Sub t)
-                          ) => Rewrite (Sub t) -> t -> t
+  rewrite       :: (
+                    LiftRewrite (t -> t) (Rewrite (Sub t)),
+                    MakeRewrite (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
+                    Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
+                    DiscriminateRewrite (Rewrite (Sub t)) (Sub t), 
+                    Subtype t (Sub t)
+                   ) => Direction -> (t -> t) -> t -> t
 
-  rewriteBottomUp      :: (
-                           LiftRewrite (t -> t) (Rewrite (Sub t)),
-                           MakeRewrite BottomUp (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
-                           Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
-                           DiscriminateRewrite (Rewrite (Sub t)) (Sub t), 
-                           Subtype t (Sub t)
-                          ) => (t -> t) -> t -> t
+  multiFold     :: (                           
+                    MakeFold (Fold (Sub t) a) (ShallowFold (Sub t) a), 
+                    Apply (ShallowFold (Sub t) a) (Fold (Sub t) a) (Fold (Sub t) a), 
+                    DiscriminateFold (Fold (Sub t) a) a (Sub t), 
+                    Subtype t (Sub t)
+                   ) => Direction -> (Fold (Sub t) a) -> a -> t -> a
 
-  rewriteTopDown       :: (                 
-                           LiftRewrite (t -> t) (Rewrite (Sub t)),
-                           MakeRewrite TopDown (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
-                           Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
-                           DiscriminateRewrite (Rewrite (Sub t)) (Sub t), 
-                           Subtype t (Sub t)
-                          ) => (t -> t) -> t -> t
 
-  multiFoldBottomUp    :: (                           
-                           MakeFold BottomUp (Fold (Sub t) a) (ShallowFold (Sub t) a), 
-                           Apply (ShallowFold (Sub t) a) (Fold (Sub t) a) (Fold (Sub t) a), 
-                           DiscriminateFold (Fold (Sub t) a) a (Sub t), 
-                           Subtype t (Sub t)
-                          ) => (Fold (Sub t) a) -> a -> t -> a
+  fold          :: (                           
+                    LiftFold (a -> t -> a) (Fold (Sub t) a),
+                    MakeFold (Fold (Sub t) a) (ShallowFold (Sub t) a), 
+                    Apply (ShallowFold (Sub t) a) (Fold (Sub t) a) (Fold (Sub t) a), 
+                    DiscriminateFold (Fold (Sub t) a) a (Sub t), 
+                    Subtype t (Sub t)
+                   ) => Direction -> (a -> t -> a) -> a -> t -> a
 
-  multiFoldTopDown     :: (                           
-                           MakeFold TopDown (Fold (Sub t) a) (ShallowFold (Sub t) a), 
-                           Apply (ShallowFold (Sub t) a) (Fold (Sub t) a) (Fold (Sub t) a), 
-                           DiscriminateFold (Fold (Sub t) a) a (Sub t), 
-                           Subtype t (Sub t)
-                          ) => (Fold (Sub t) a) -> a -> t -> a
+  fv            :: (                   
+                    Eq (Var t),
+                    MakeFV (Fold (Sub t) [Var t]),
+                    MakeFold {-BottomUp-} (Fold (Sub t) [Var t]) (ShallowFold (Sub t) [Var t]), 
+                    Apply (ShallowFold (Sub t) [Var t]) (Fold (Sub t) [Var t]) (Fold (Sub t) [Var t]), 
+                    DiscriminateFold (Fold (Sub t) [Var t]) [Var t] (Sub t), 
+                    Subtype t (Sub t)
+                   ) => t -> [Var t]
 
-  foldBottomUp         :: (                           
-                           LiftFold (a -> t -> a) (Fold (Sub t) a),
-                           MakeFold BottomUp (Fold (Sub t) a) (ShallowFold (Sub t) a), 
-                           Apply (ShallowFold (Sub t) a) (Fold (Sub t) a) (Fold (Sub t) a), 
-                           DiscriminateFold (Fold (Sub t) a) a (Sub t), 
-                           Subtype t (Sub t)
-                          ) => (a -> t -> a) -> a -> t -> a
+  subst         :: (
+                    Eq (Var t),
+                    LiftRewrite (t -> t) (Rewrite (Sub t)),
+                    MakeRewrite {-BottomUp-} (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
+                    Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
+                    DiscriminateRewrite (Rewrite (Sub t)) (Sub t), 
+                    Subtype t (Sub t)
+                   ) => t -> Var t -> t -> t
 
-  foldTopDown          :: (                           
-                           LiftFold (a -> t -> a) (Fold (Sub t) a),
-                           MakeFold TopDown (Fold (Sub t) a) (ShallowFold (Sub t) a), 
-                           Apply (ShallowFold (Sub t) a) (Fold (Sub t) a) (Fold (Sub t) a), 
-                           DiscriminateFold (Fold (Sub t) a) a (Sub t), 
-                           Subtype t (Sub t)
-                          ) => (a -> t -> a) -> a -> t -> a
+  cas           :: (
+                    Eq (Var t),
+                    LiftRewrite (t -> t) (Rewrite (Sub t)),
+                    MakeRewrite {-TopDown-} (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
+                    Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
+                    DiscriminateRewrite (Rewrite (Sub t)) (Sub t), 
+                    Subtype t (Sub t)
+                   ) => [Var t] -> t -> Var t -> t -> t
 
-  fv                   :: (                   
-                           Eq (Var t),
-                           MakeFV (Fold (Sub t) [Var t]),
-                           MakeFold BottomUp (Fold (Sub t) [Var t]) (ShallowFold (Sub t) [Var t]), 
-                           Apply (ShallowFold (Sub t) [Var t]) (Fold (Sub t) [Var t]) (Fold (Sub t) [Var t]), 
-                           DiscriminateFold (Fold (Sub t) [Var t]) [Var t] (Sub t), 
-                           Subtype t (Sub t)
-                          ) => t -> [Var t]
+  multiRewrite d f t = 
+    let fs = apply (makeRewrite d f :: ShallowRewrite (Sub t)) fs in 
+    case d of
+      BottomUp -> let t' = make t $ discriminateRewrite (subterms t) fs in
+                  ((prj $ discriminateRewrite (inj t' :: Sub t) f) :: t) 
+      _        -> let t' = ((prj $ discriminateRewrite (inj t :: Sub t) f) :: t) in
+                  make t' $ discriminateRewrite (subterms t') fs
 
-  subst                :: (
-                           Eq (Var t),
-                           LiftRewrite (t -> t) (Rewrite (Sub t)),
-                           MakeRewrite BottomUp (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
-                           Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
-                           DiscriminateRewrite (Rewrite (Sub t)) (Sub t), 
-                           Subtype t (Sub t)
-                          ) => t -> Var t -> t -> t
+  rewrite d f t = multiRewrite d (liftRewrite f) t
 
-  cas                  :: (
-                           Eq (Var t),
-                           LiftRewrite (t -> t) (Rewrite (Sub t)),
-                           MakeRewrite TopDown (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
-                           Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
-                           DiscriminateRewrite (Rewrite (Sub t)) (Sub t), 
-                           Subtype t (Sub t)
-                          ) => [Var t] -> t -> Var t -> t -> t
+  multiFold d f (a :: a) t = 
+    let fs = apply (makeFold d f :: ShallowFold (Sub t) a) fs in
+    case d of
+      BottomUp -> discriminateFold (inj t :: Sub t) (discriminateFold (subterms t) a fs) f
+      _        -> discriminateFold (subterms t) (discriminateFold (inj t :: Sub t) a fs) fs     
 
-  multiRewriteBottomUp f t = 
-    let fs = apply (makeRewrite BU f :: ShallowRewrite (Sub t)) fs in 
-    let t' = make t $ discriminateRewrite (subterms t) fs in
-    ((prj $ discriminateRewrite (inj t' :: Sub t) f) :: t) 
 
-  multiRewriteTopDown f t = 
-    let fs = apply (makeRewrite TD f :: ShallowRewrite (Sub t)) fs in 
-    let t' = ((prj $ discriminateRewrite (inj t :: Sub t) f) :: t) in
-    make t' $ discriminateRewrite (subterms t') fs
+  fold d f (a :: a) t = multiFold d (liftFold f) a t
 
-  rewriteBottomUp f t = multiRewriteBottomUp (liftRewrite f) t
-  rewriteTopDown  f t = multiRewriteTopDown  (liftRewrite f) t
+  fv t = nub $ multiFold BottomUp (makeFV :: Fold (Sub t) [Var t]) [] t
 
-  multiFoldBottomUp f (a :: a) t = 
-    let fs = apply (makeFold BU f :: ShallowFold (Sub t) a) fs in
-    let a' = discriminateFold (subterms t) a fs in
-    discriminateFold (inj t :: Sub t) a fs
-
-  multiFoldTopDown f (a :: a) t = 
-    let fs = apply (makeFold TD f :: ShallowFold (Sub t) a) fs in
-    discriminateFold (subterms t) (discriminateFold (inj t :: Sub t) a fs) fs     
-
-  foldBottomUp f (a :: a) t = multiFoldBottomUp (liftFold f) a t
-  foldTopDown  f (a :: a) t = multiFoldTopDown  (liftFold f) a t
-
-  fv t = nub $ multiFoldBottomUp (makeFV :: Fold (Sub t) [Var t]) [] t
-
-  subst t x s = rewriteBottomUp (\ t' -> case var t' of
-                                           Just y -> if y == x then s else t'
-                                           _      -> t'
-                                ) t
+  subst t x s = rewrite BottomUp (\ t' -> case var t' of
+                                            Just y -> if y == x then s else t'
+                                            _      -> t'
+                                 ) t
 {-
   cas vs t x s = subst (rename t [] $ fv s) x s where
     rename t rs fvs = rewriteTopDown
@@ -153,8 +118,6 @@ rewriteTopDown (\ t' -> case var t' of
 -}
  
 data Direction = TopDown | BottomUp
-data BottomUp = BU
-data TopDown  = TD
 
 infixr 5 :+:
 
@@ -241,28 +204,26 @@ instance {-# OVERLAPPING #-} LiftFold (a -> t -> a) (a -> t -> a) where
 instance (LiftFold f fs, LiftFold f gs) => LiftFold f (fs :+: gs) where
   liftFold f = liftFold f :+: liftFold f
 
-class MakeRewrite dir f fs where
-  makeRewrite :: dir -> f -> fs
+class MakeRewrite f fs where
+  makeRewrite :: Direction -> f -> fs
 
-instance (DiscriminateRewrite c (Sub t), Term t) => MakeRewrite BottomUp (t -> t) (c -> t -> t) where
-  makeRewrite dir f c = \ t -> f $ make t $ discriminateRewrite (subterms t) c
+instance (DiscriminateRewrite c (Sub t), Term t) => MakeRewrite (t -> t) (c -> t -> t) where
+  makeRewrite dir f c = case dir of
+                          BottomUp -> \ t -> f $ make t $ discriminateRewrite (subterms t) c
+                          _        -> \ t -> let t' = f t in make t' $ discriminateRewrite (subterms t') c
 
-instance (DiscriminateRewrite c (Sub t), Term t) => MakeRewrite TopDown (t -> t) (c -> t -> t) where
-  makeRewrite dir f c = \ t -> let t' = f t in make t' $ discriminateRewrite (subterms t') c
-
-instance {-# OVERLAPPING #-} (MakeRewrite d f fs, MakeRewrite d g gs) => MakeRewrite d (f :+: g) (fs :+: gs) where
+instance {-# OVERLAPPING #-} (MakeRewrite f fs, MakeRewrite g gs) => MakeRewrite (f :+: g) (fs :+: gs) where
   makeRewrite dir (f :+: g) = makeRewrite dir f :+: makeRewrite dir g
 
-class MakeFold dir f fs where
-  makeFold :: dir -> f -> fs
+class MakeFold f fs where
+  makeFold :: Direction -> f -> fs
 
-instance (DiscriminateFold c a (Sub t), Term t) => MakeFold BottomUp (a -> t -> a) (c -> a -> t -> a) where
-  makeFold dir f c = \ a t -> f (discriminateFold (subterms t) a c) t
+instance (DiscriminateFold c a (Sub t), Term t) => MakeFold (a -> t -> a) (c -> a -> t -> a) where
+  makeFold dir f c = case dir of
+                       BottomUp -> \ a t -> f (discriminateFold (subterms t) a c) t
+                       _        -> \ a t -> discriminateFold (subterms t) (f a t) c
 
-instance (DiscriminateFold c a (Sub t), Term t) => MakeFold TopDown (a -> t -> a) (c -> a -> t -> a) where
-  makeFold dir f c = \ a t -> discriminateFold (subterms t) (f a t) c
-
-instance {-# OVERLAPPING #-} (MakeFold d f fs, MakeFold d g gs) => MakeFold d (f :+: g) (fs :+: gs) where
+instance {-# OVERLAPPING #-} (MakeFold f fs, MakeFold g gs) => MakeFold (f :+: g) (fs :+: gs) where
   makeFold dir (f :+: g) = makeFold dir f :+: makeFold dir g
 
 class DiscriminateFold fs a t where
