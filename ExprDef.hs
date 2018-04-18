@@ -22,12 +22,12 @@ instance Term Def where
 
   binder (Def s _) = Just s
 
-  eq _ _ = True
-
   subterms (Def _ e) = [e] :+: []
 
   make (Def s _) ([e] :+: []) = Def s e
 
+  rename (Def _ e) x = Def x e
+  
 instance Term Expr where
   type Var Expr = String
   type Sub Expr = [Expr] :+: [Def]
@@ -36,12 +36,6 @@ instance Term Expr where
   var  _      = Nothing
 
   binder _    = Nothing
-
-  eq (Var     _) (Var     _) = True
-  eq (Const   _) (Const   _) = True
-  eq (Bop _ _ _) (Bop _ _ _) = True
-  eq (Let _ _  ) (Let _ _  ) = True
-  eq  _           _          = False
 
   subterms (Var _)     = [] :+: []
   subterms (Const _)   = [] :+: []
@@ -53,15 +47,18 @@ instance Term Expr where
   make (Bop b _ _) ([l, r] :+: [] ) = Bop b l r
   make (Let _ _  ) ([e]    :+: [d]) = Let d e
 
+  rename (Var _) x = Var x
+  rename x       _ = x
+  
 elim0 t = case t of
             Bop "+" e (Const 0) -> e
             Bop "+" (Const 0) e -> e
             _                   -> t
 
-rename r t = case t of 
-               Var s             -> Var $ r s 
-               Let (Def s e1) e2 -> Let (Def (r s) e1) e2
-               _                 -> t 
+rename_name r t = case t of 
+                    Var s             -> Var $ r s 
+                    Let (Def s e1) e2 -> Let (Def (r s) e1) e2
+                    _                 -> t 
                    
 expand t = case t of
               Const n -> if n > 1 then Bop "+" (Const $ n-1) (Const 1) else t
@@ -87,7 +84,7 @@ main = do
   putStrLn $ show expr2
 
   putStrLn $ show $ rewrite BottomUp elim0 expr1
-  putStrLn $ show $ rewrite BottomUp (rename (++"_renamed")) expr1
+  putStrLn $ show $ rewrite BottomUp (rename_name (++"_renamed")) expr1
   putStrLn $ show $ rewrite TopDown expand expr2
   putStrLn $ show $ multiRewrite BottomUp (elim0  :+: renameDef (++"_renamed")) expr1
   putStrLn $ show $ multiRewrite TopDown (expand :+: renameDef (++"_renamed")) expr2

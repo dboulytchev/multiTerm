@@ -19,9 +19,9 @@ class Term t where
   subterms   :: t -> Sub t
   var        :: t -> Maybe (Var t)
   binder     :: t -> Maybe (Var t)
-  eq         :: t -> t -> Bool
   make       :: t -> Sub t -> t
-
+  rename     :: t -> Var t -> t
+  
   multiRewrite  :: (
                     MakeRewrite (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
                     Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
@@ -44,7 +44,6 @@ class Term t where
                     Subtype t (Sub t)
                    ) => Direction -> (Fold (Sub t) a) -> a -> t -> a
 
-
   fold          :: (                           
                     LiftFold (a -> t -> a) (Fold (Sub t) a),
                     MakeFold (Fold (Sub t) a) (ShallowFold (Sub t) a), 
@@ -56,7 +55,7 @@ class Term t where
   fv            :: (                   
                     Eq (Var t),
                     MakeFV (Fold (Sub t) [Var t]),
-                    MakeFold {-BottomUp-} (Fold (Sub t) [Var t]) (ShallowFold (Sub t) [Var t]), 
+                    MakeFold (Fold (Sub t) [Var t]) (ShallowFold (Sub t) [Var t]), 
                     Apply (ShallowFold (Sub t) [Var t]) (Fold (Sub t) [Var t]) (Fold (Sub t) [Var t]), 
                     DiscriminateFold (Fold (Sub t) [Var t]) [Var t] (Sub t), 
                     Subtype t (Sub t)
@@ -65,20 +64,30 @@ class Term t where
   subst         :: (
                     Eq (Var t),
                     LiftRewrite (t -> t) (Rewrite (Sub t)),
-                    MakeRewrite {-BottomUp-} (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
+                    MakeRewrite (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
                     Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
                     DiscriminateRewrite (Rewrite (Sub t)) (Sub t), 
                     Subtype t (Sub t)
                    ) => t -> Var t -> t -> t
 
-  cas           :: (
-                    Eq (Var t),
-                    LiftRewrite (t -> t) (Rewrite (Sub t)),
-                    MakeRewrite {-TopDown-} (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
-                    Apply (ShallowRewrite (Sub t)) (Rewrite (Sub t)) (Rewrite (Sub t)), 
-                    DiscriminateRewrite (Rewrite (Sub t)) (Sub t), 
-                    Subtype t (Sub t)
-                   ) => [Var t] -> t -> Var t -> t -> t
+---
+  cas        :: (
+                 Eq (Var t), 
+                 MakeFV (Fold (Sub t) [Var t]),
+                 
+                 Apply (Distrib (LiftForFold (Sub t) [Var t])) (Fold (Sub t) [Var t]) (Fold (Sub t) [Var t]),
+                 DiscriminateFold (Fold (Sub t) [Var t]) [Var t] (Sub t),
+                 MakeFold (Fold (Sub t) [Var t]) (Distrib (LiftForFold (Sub t) [Var t])),
+
+                 Apply (Distrib (LiftForCAS (Sub t) ([Var t], Var t -> t, [Var t]))) (CAS (Sub t) ([Var t], Var t -> t, [Var t])) (CAS (Sub t) ([Var t], Var t -> t, [Var t])),
+                 DiscriminateCAS (CAS (Sub t) ([Var t], Var t -> t, [Var t])) ([Var t], Var t -> t, [Var t]) (Sub t),
+                 MakeCAS (CAS (Sub t) ([Var t], Var t -> t, [Var t]))
+                         (Distrib (LiftForCAS (Sub t) ([Var t], Var t -> t, [Var t]))),
+
+                 Subtype t (Sub t)
+                ) => t -> Var t -> t -> t
+
+---
 
   multiRewrite d f t = 
     let fs = apply (makeRewrite d f :: ShallowRewrite (Sub t)) fs in 
@@ -96,7 +105,6 @@ class Term t where
       BottomUp -> discriminateFold (inj t :: Sub t) (discriminateFold (subterms t) a fs) f
       _        -> discriminateFold (subterms t) (discriminateFold (inj t :: Sub t) a fs) fs     
 
-
   fold d f (a :: a) t = multiFold d (liftFold f) a t
 
   fv t = nub $ multiFold BottomUp (makeFV :: Fold (Sub t) [Var t]) [] t
@@ -105,18 +113,27 @@ class Term t where
                                             Just y -> if y == x then s else t'
                                             _      -> t'
                                  ) t
-{-
-  cas vs t x s = subst (rename t [] $ fv s) x s where
-    rename t rs fvs = rewriteTopDown
-      
 
-
-rewriteTopDown (\ t' -> case var t' of
-                                           Just y -> if y == x then s else t'
-                                           _      -> t'
-                                ) t             
--}
- 
+  cas t x a = cas' t (singleton x a) where
+    cas' t ss@(dom, s, fvs) =
+      case var t of
+        Just x -> if elem x dom then s x else t
+        _      -> case binder t of
+                    Nothing -> recurse t ss
+                    Just x  -> if elem x dom
+                               then recurse t (dom \\ [x], s, fvs) 
+                               else if elem x fvs
+                                    then {- bad case -} undefined
+                                    else recurse t ss
+    recurse t s =
+      let fs = apply (makeCAS cas' :: ShallowCAS (Sub t) ([Var t], Var t -> t, [Var t])) fs in
+      undefined
+      -- make t $ discriminateCAS (subterms t) fs
+    singleton x a            = ([x], update empty x a, fv a)
+    empty     _              = undefined
+    update f x a y           = if x == y then a else f y 
+    extend (dom, s, fvs) x a = (nub x:dom, update s x a, nub $ fv a ++ fvs)    
+  
 data Direction = TopDown | BottomUp
 
 infixr 5 :+:
@@ -159,8 +176,12 @@ type family Rewrite a where
   Rewrite ([t] :+: b) = (t -> t) :+: Rewrite b
 
 type family Fold t a where
-  Fold [t] a         = a -> t -> a
+  Fold [t]         a = a -> t -> a
   Fold ([t] :+: b) a = (a -> t -> a) :+: Fold b a
+
+type family CAS a s where
+  CAS [t]         s = t -> s -> t
+  CAS ([t] :+: b) s = (t -> s -> t) :+: CAS b s
 
 type family LiftForRewrite a where
   LiftForRewrite [f]       = (f -> f) -> f -> f
@@ -169,6 +190,10 @@ type family LiftForRewrite a where
 type family LiftForFold t a where
   LiftForFold [t]       a = (a -> t -> a) -> a -> t -> a
   LiftForFold (a :+: b) c = Dom (LiftForFold a c) :+: Dom (LiftForFold b c) -> Cod (LiftForFold a c) :+: Cod (LiftForFold b c)
+
+type family LiftForCAS a s where
+  LiftForCAS [t]       s = (t -> s -> t) -> t -> s -> t
+  LiftForCAS (a :+: b) s = Dom (LiftForCAS a s) :+: Dom (LiftForCAS b s) -> Cod (LiftForCAS a s) :+: Cod (LiftForCAS b s)
 
 type family Distrib a where
   Distrib (c -> a :+: b) = (c -> a) :+: (c -> b)
@@ -179,6 +204,9 @@ type family ShallowRewrite a where
 
 type family ShallowFold a b where
   ShallowFold a b = Distrib (LiftForFold a b)
+
+type family ShallowCAS a b where
+  ShallowCAS a b = Distrib (LiftForCAS a b)
 
 class LiftRewrite f fs where
   liftRewrite :: f -> fs
@@ -204,6 +232,18 @@ instance {-# OVERLAPPING #-} LiftFold (a -> t -> a) (a -> t -> a) where
 instance (LiftFold f fs, LiftFold f gs) => LiftFold f (fs :+: gs) where
   liftFold f = liftFold f :+: liftFold f
 
+class LiftCAS f fs where
+  liftCAS :: f -> fs
+
+instance LiftCAS (t -> s -> t) (q -> s -> q) where
+  liftCAS f = \ a x -> a
+
+instance {-# OVERLAPPING #-} LiftCAS (t -> s -> t) (t -> s -> t) where
+  liftCAS f = \ a x -> f a x
+  
+instance (LiftCAS f fs, LiftCAS f gs) => LiftCAS f (fs :+: gs) where
+  liftCAS f = liftCAS f :+: liftCAS f
+  
 class MakeRewrite f fs where
   makeRewrite :: Direction -> f -> fs
 
@@ -226,6 +266,15 @@ instance (DiscriminateFold c a (Sub t), Term t) => MakeFold (a -> t -> a) (c -> 
 instance {-# OVERLAPPING #-} (MakeFold f fs, MakeFold g gs) => MakeFold (f :+: g) (fs :+: gs) where
   makeFold dir (f :+: g) = makeFold dir f :+: makeFold dir g
 
+class MakeCAS f fs where
+  makeCAS :: f -> fs
+
+instance (DiscriminateCAS c s (Sub t), Term t) => MakeCAS (t -> s -> t) (c -> t -> s -> t) where
+  makeCAS c f t s = make t $ discriminateCAS (subterms t) s f  
+
+instance {-# OVERLAPPING #-} (MakeCAS f fs, MakeCAS g gs) => MakeCAS (f :+: g) (fs :+: gs) where
+  makeCAS (f :+: g) = makeCAS f :+: makeCAS g
+  
 class DiscriminateFold fs a t where
   discriminateFold :: t -> a -> fs -> a
 
@@ -255,6 +304,24 @@ instance {-# OVERLAPPING #-} DiscriminateRewrite ((a -> a) :+: g) [a] where
 
 instance {-# OVERLAPPING #-} (DiscriminateRewrite (fs :+: gs) a, DiscriminateRewrite (fs :+: gs) b) => DiscriminateRewrite (fs :+: gs) (a :+: b) where
   discriminateRewrite (a :+: b) fsgs = (discriminateRewrite a fsgs) :+: (discriminateRewrite b fsgs)
+
+---
+class DiscriminateCAS fs s t where
+  discriminateCAS :: t -> s -> fs -> t
+
+instance DiscriminateCAS (t -> s -> t) s [t] where
+  discriminateCAS ts s f = map (\t -> f t s) ts
+
+instance DiscriminateCAS g s t => DiscriminateCAS (f :+: g) s t where
+  discriminateCAS t s (_ :+: g) = discriminateCAS t s g  
+
+instance {-# OVERLAPPING #-} DiscriminateCAS ((t -> s -> t) :+: g) s [t] where
+  discriminateCAS t s (f :+: g) = map (\t -> f t s) t
+
+instance {-# OVERLAPPING #-} (DiscriminateCAS (fs :+: gs) s a, DiscriminateCAS (fs :+: gs) s b) => DiscriminateCAS (fs :+: gs) s (a :+: b) where
+  discriminateCAS (a :+: b) s fsgs = (discriminateCAS a s fsgs) :+: (discriminateCAS b s fsgs) 
+
+---
 
 class Apply a b c | a -> b c where
   apply :: a -> b -> c

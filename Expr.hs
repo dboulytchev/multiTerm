@@ -20,11 +20,6 @@ instance Term Expr where
 
   binder _    = Nothing
 
-  eq (Var     _) (Var     _) = True
-  eq (Const   _) (Const   _) = True
-  eq (Bop _ _ _) (Bop _ _ _) = True
-  eq  _           _          = False
-
   subterms (Var _)     = [] 
   subterms (Const _)   = [] 
   subterms (Bop _ l r) = [l, r] 
@@ -33,14 +28,17 @@ instance Term Expr where
   make t@(Const _)  _     = t
   make (Bop b _ _) [l, r] = Bop b l r
 
+  rename (Var _) x = Var x
+  rename y       _ = y
+
 elim0 t = case t of
             Bop "+" e (Const 0) -> e
             Bop "+" (Const 0) e -> e
             _                   -> t
 
-rename r t = case t of 
-               Var s -> Var $ r s 
-               _     -> t 
+rename_var r t = case t of 
+                   Var s -> Var $ r s 
+                   _     -> t 
                    
 expand t = case t of
               Const n -> if n > 1 then Bop "+" (Const $ n-1) (Const 1) else t
@@ -62,7 +60,7 @@ main = do
   putStrLn $ show expr2
 
   putStrLn $ show $ rewrite BottomUp elim0 expr1
-  putStrLn $ show $ rewrite BottomUp (rename (++"_renamed")) expr1
+  putStrLn $ show $ rewrite BottomUp (rename_var (++"_renamed")) expr1
   putStrLn $ show $ rewrite TopDown expand expr2
   putStrLn $ show $ rewrite BottomUp eval (rewrite TopDown expand expr2)
   putStrLn $ show $ rewrite TopDown eval (rewrite TopDown expand expr2)
