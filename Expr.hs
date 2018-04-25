@@ -7,6 +7,7 @@
 {-# LANGUAGE TypeFamilies           #-}
 
 import MultiTerm
+import Data.List ((\\))
 import Debug.Trace
 
 data Expr = Var String | Const Int | Bop String Expr Expr deriving Show
@@ -30,6 +31,9 @@ instance Term Expr where
 
   rename (Var _) x = Var x
   rename y       _ = y
+
+  fresh vs = Var $ head $ names \\ vs
+    where names = (\ l -> l ++ [x ++ name | name <- names, x <- l]) $ map (:[]) ['a'..'z']
 
 elim0 t = case t of
             Bop "+" e (Const 0) -> e

@@ -27,6 +27,9 @@ instance Term Def where
   make (Def s _) ([e] :+: []) = Def s e
 
   rename (Def _ e) x = Def x e
+
+  fresh _ = undefined
+
   
 instance Term Expr where
   type Var Expr = String
@@ -49,7 +52,10 @@ instance Term Expr where
 
   rename (Var _) x = Var x
   rename x       _ = x
-  
+
+  fresh vs = Var $ head $ names \\ vs
+    where names = (\ l -> l ++ [x ++ name | name <- names, x <- l]) $ map (:[]) ['a'..'z']  
+
 elim0 t = case t of
             Bop "+" e (Const 0) -> e
             Bop "+" (Const 0) e -> e

@@ -11,16 +11,18 @@ module MultiTerm where
 
 import Data.Maybe 
 import Data.List
+import Debug.Trace
 
 class Term t where
   type Var t :: *
   type Sub t :: *
 
-  subterms   :: t -> Sub t
-  var        :: t -> Maybe (Var t)
-  binder     :: t -> Maybe (Var t)
-  make       :: t -> Sub t -> t
-  rename     :: t -> Var t -> t
+  subterms    :: t -> Sub t
+  var         :: t -> Maybe (Var t)
+  binder      :: t -> Maybe (Var t)
+  make        :: t -> Sub t -> t
+  rename      :: t -> Var t -> t
+  fresh       :: [Var t] -> t
   
   multiRewrite  :: (
                     MakeRewrite (Rewrite (Sub t)) (ShallowRewrite (Sub t)), 
@@ -71,21 +73,24 @@ class Term t where
                    ) => t -> Var t -> t -> t
 
 ---
-  cas        :: (
-                 Eq (Var t), 
-                 MakeFV (Fold (Sub t) [Var t]),
-                 
-                 Apply (Distrib (LiftForFold (Sub t) [Var t])) (Fold (Sub t) [Var t]) (Fold (Sub t) [Var t]),
-                 DiscriminateFold (Fold (Sub t) [Var t]) [Var t] (Sub t),
-                 MakeFold (Fold (Sub t) [Var t]) (Distrib (LiftForFold (Sub t) [Var t])),
+  cas :: (
+          Eq (Var t),
+          MakeFV (Fold (Sub t) [Var t]),
+          Show t,
+          Show (Var t),
+          
+          Apply (ShallowFold (Sub t) [Var t]) (Fold (Sub t) [Var t]) (Fold (Sub t) [Var t]),
+          DiscriminateFold (Fold (Sub t) [Var t]) [Var t] (Sub t),
+          MakeFold (Fold (Sub t) [Var t]) (Distrib (LiftForFold (Sub t) [Var t])),
 
-                 Apply (Distrib (LiftForCAS (Sub t) ([Var t], Var t -> t, [Var t]))) (CAS (Sub t) ([Var t], Var t -> t, [Var t])) (CAS (Sub t) ([Var t], Var t -> t, [Var t])),
-                 DiscriminateCAS (CAS (Sub t) ([Var t], Var t -> t, [Var t])) ([Var t], Var t -> t, [Var t]) (Sub t),
-                 MakeCAS (CAS (Sub t) ([Var t], Var t -> t, [Var t]))
-                         (Distrib (LiftForCAS (Sub t) ([Var t], Var t -> t, [Var t]))),
+          Apply (ShallowCAS (Sub t) ([Var t], Var t -> t, [Var t])) (CAS (Sub t) ([Var t], Var t -> t, [Var t])) (CAS (Sub t) ([Var t], Var t -> t, [Var t])),
+          DiscriminateCAS (CAS (Sub t) ([Var t], Var t -> t, [Var t])) ([Var t], Var t -> t, [Var t]) (Sub t),
+          MakeCAS (CAS (Sub t) ([Var t], Var t -> t, [Var t]))
+                  (ShallowCAS (Sub t) ([Var t], Var t -> t, [Var t])),
+          LiftCAS (t -> ([Var t], Var t -> t, [Var t]) -> t) (CAS (Sub t) ([Var t], Var t -> t, [Var t])), 
 
-                 Subtype t (Sub t)
-                ) => t -> Var t -> t -> t
+          Subtype t (Sub t)
+         ) => t -> Var t -> t -> t
 
 ---
 
@@ -113,26 +118,44 @@ class Term t where
                                             Just y -> if y == x then s else t'
                                             _      -> t'
                                  ) t
+{-
+
+cas subj (S [] _)    = subj
+cas subj s@(S dom f) =  
+  case subj of
+    Var x   -> if elem x dom then f x else Var x
+    App a b -> App (cas a s) (cas b s) 
+    Abs x m -> if elem x dom
+               then Abs x $ cas m (S (dom \\ [x]) f)
+               else if elem x $ fv s
+                    then let z = fresh (x : fv s ++ fv m) in
+                         Abs z $ cas m (S (x : dom) (extend x (Var z) f))
+                    else Abs x $ cas m s
+-}
 
   cas t x a = cas' t (singleton x a) where
     cas' t ss@(dom, s, fvs) =
       case var t of
         Just x -> if elem x dom then s x else t
         _      -> case binder t of
-                    Nothing -> recurse t ss
+                    Nothing -> trace ("Là-bas\n") $ recurse t ss
                     Just x  -> if elem x dom
                                then recurse t (dom \\ [x], s, fvs) 
-                               else if elem x fvs
-                                    then {- bad case -} undefined
-                                    else recurse t ss
+                               else if elem x (trace (show x ++ " in " ++ show fvs) fvs) 
+                                    then 
+                                      let z = fresh (x : fvs) :: t  in
+                                      case var z of 
+                                        Just z' -> recurse (rename t z') (x : dom, update s x z, z' : fvs) --(extend ss x z :: ([Var t], Var t -> t, [Var t]))
+                                        Nothing -> error "A fresh name is not a name" 
+                                      --{- bad case -} undefined
+                                    else trace "Ici\n" $ recurse t ss
     recurse t s =
-      let fs = apply (makeCAS cas' :: ShallowCAS (Sub t) ([Var t], Var t -> t, [Var t])) fs in
-      undefined
-      -- make t $ discriminateCAS (subterms t) fs
+      let fs = apply (makeCAS (liftCAS cas' :: CAS (Sub t) ([Var t], Var t -> t, [Var t])) :: ShallowCAS (Sub t) ([Var t], Var t -> t, [Var t])) fs in
+      make t $ discriminateCAS (subterms t) s fs
     singleton x a            = ([x], update empty x a, fv a)
     empty     _              = undefined
-    update f x a y           = if x == y then a else f y 
-    extend (dom, s, fvs) x a = (nub x:dom, update s x a, nub $ fv a ++ fvs)    
+    update f x a y           = if x == y then a else f y
+    extend (dom, s, fvs) x a = (nub x:dom, update s x a, nub $ (fv a ++ fvs))
   
 data Direction = TopDown | BottomUp
 
@@ -236,10 +259,10 @@ class LiftCAS f fs where
   liftCAS :: f -> fs
 
 instance LiftCAS (t -> s -> t) (q -> s -> q) where
-  liftCAS f = \ a x -> a
+  liftCAS f = \ q s -> q
 
 instance {-# OVERLAPPING #-} LiftCAS (t -> s -> t) (t -> s -> t) where
-  liftCAS f = \ a x -> f a x
+  liftCAS f = \ t s -> f t s
   
 instance (LiftCAS f fs, LiftCAS f gs) => LiftCAS f (fs :+: gs) where
   liftCAS f = liftCAS f :+: liftCAS f
@@ -270,7 +293,8 @@ class MakeCAS f fs where
   makeCAS :: f -> fs
 
 instance (DiscriminateCAS c s (Sub t), Term t) => MakeCAS (t -> s -> t) (c -> t -> s -> t) where
-  makeCAS c f t s = make t $ discriminateCAS (subterms t) s f  
+  makeCAS f c t s = let t' = f t s in make t' $ discriminateCAS (subterms t') s c
+  -- makeCAS f c t s = make t $ discriminateCAS (subterms t) s c 
 
 instance {-# OVERLAPPING #-} (MakeCAS f fs, MakeCAS g gs) => MakeCAS (f :+: g) (fs :+: gs) where
   makeCAS (f :+: g) = makeCAS f :+: makeCAS g
@@ -316,7 +340,7 @@ instance DiscriminateCAS g s t => DiscriminateCAS (f :+: g) s t where
   discriminateCAS t s (_ :+: g) = discriminateCAS t s g  
 
 instance {-# OVERLAPPING #-} DiscriminateCAS ((t -> s -> t) :+: g) s [t] where
-  discriminateCAS t s (f :+: g) = map (\t -> f t s) t
+  discriminateCAS t s (f :+: g) = map (\t -> f t s) t -- MB discriminateCAS t s f ?? 
 
 instance {-# OVERLAPPING #-} (DiscriminateCAS (fs :+: gs) s a, DiscriminateCAS (fs :+: gs) s b) => DiscriminateCAS (fs :+: gs) s (a :+: b) where
   discriminateCAS (a :+: b) s fsgs = (discriminateCAS a s fsgs) :+: (discriminateCAS b s fsgs) 

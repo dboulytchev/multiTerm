@@ -1,4 +1,4 @@
-TESTS=Expr ExprDef
+TESTS=Expr ExprDef Lambda
 GHC=ghc
 
 all: $(TESTS)
