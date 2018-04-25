@@ -149,9 +149,10 @@ cas subj s@(S dom f) =
                                         Nothing -> error "A fresh name is not a name" 
                                       --{- bad case -} undefined
                                     else trace "Ici\n" $ recurse t ss
-    recurse t s =
+    recurse t s = 
       let fs = apply (makeCAS (liftCAS cas' :: CAS (Sub t) ([Var t], Var t -> t, [Var t])) :: ShallowCAS (Sub t) ([Var t], Var t -> t, [Var t])) fs in
       make t $ discriminateCAS (subterms t) s fs
+
     singleton x a            = ([x], update empty x a, fv a)
     empty     _              = undefined
     update f x a y           = if x == y then a else f y
