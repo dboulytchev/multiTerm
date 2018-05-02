@@ -7,6 +7,7 @@
 {-# LANGUAGE UndecidableInstances   #-}
 --{-# LANGUAGE AllowAmbiguousTypes    #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
+{-# LANGUAGE ExistentialQuantification  #-}
 
 infixr 6 :+:
 infixr 6 :|:
@@ -48,8 +49,18 @@ instance Apply (U a) a b where
   
 -- End of apply
 
-class List l a where
-  polymap :: PolyFun a c -> l -> [c]
+data AppList f c = Nil | forall a . Apply f a c => Cons a (AppList f c)
+
+polymap :: PolyFun f c -> AppList f c -> [c]
+polymap _ Nil = []
+polymap f (Cons h t) = apply f h : polymap f t 
+
+--p :: ExList -> String
+--p Nil        = ""
+--p (Cons h t) = show h ++ p t
+
+--class List l a where
+ -- polymap :: PolyFun a c -> l -> [c]
 
 --instance (Apply b a b, List l b) => List (a :+: l) b where
   --polymap f (a :+: b) = apply f a : polymap f b
