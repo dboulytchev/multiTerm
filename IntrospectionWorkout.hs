@@ -11,7 +11,7 @@ module IntrospectionWorkout where
 infixr 6 :+:
 infixr 6 :|:
 
--- Product 
+-- Product
 data a :+: b = a :+: b
 
 -- Coproduct
@@ -65,13 +65,17 @@ instance {-# OVERLAPPING #-} ApplyPolyform (a :|: c) a b where
 
 instance  {-# OVERLAPPABLE #-} ApplyPolyform y a b => ApplyPolyform (x :|: y) a b where
   applyPolyform (_ :+: g) x b = applyPolyform g x b
-  
+
 instance ApplyPolyform (U a) a b where
   applyPolyform f x b = f x b
 
 -- End of application
 
-data AppList f c = Nil | forall a . (ApplyUniform f a c, ApplyPolyform f a c) => Cons a (AppList f c)
+data AppList f c = Nil | forall a . (Show a, ApplyUniform f a c, ApplyPolyform f a c) => Cons a (AppList f c)
+
+instance Show (AppList f c) where
+  show Nil = "[]"
+  show (Cons h t) = show h ++ " : " ++ show t
 
 polymap :: Uniform f c -> AppList f c -> [c]
 polymap _ Nil = []
@@ -84,6 +88,13 @@ polyfoldl f (Cons h t) acc = polyfoldl f t (applyUniform f h acc)
 polyfoldr :: Uniform f (c -> c) -> AppList f (c -> c) -> c -> c
 polyfoldr _  Nil       acc = acc
 polyfoldr f (Cons h t) acc = applyUniform f h (polyfoldr f t acc)
+
+
+
+mapPolyForm :: Polyform f c -> AppList f c -> c -> AppList f c
+mapPolyForm _ Nil _ = Nil
+mapPolyForm f (Cons h t) c = Cons (applyPolyform f h c) (mapPolyForm f t c)
+
 
 main :: IO ()
 main = do

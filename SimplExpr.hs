@@ -21,13 +21,13 @@ import Data.List ((\\), nub)
 data Expr = Var String | Const Int | Bop String Expr Expr | Let Def Expr deriving Show
 data Def  = Def String Expr deriving Show
 
-subtermsExpr :: (Apply f Def c, Apply f Expr c) => Expr -> AppList f c
+subtermsExpr :: (ApplyUniform f Def c, ApplyUniform f Expr c, ApplyPolyform f Def c, ApplyPolyform f Expr c) => Expr -> AppList f c
 subtermsExpr (Var   _)   = Nil
 subtermsExpr (Const _)   = Nil
 subtermsExpr (Bop _ l r) = Cons l (Cons r Nil)
 subtermsExpr (Let d e)   = Cons d (Cons e Nil)
 
-subtermsDef :: Apply f Expr c => Def -> AppList f c
+subtermsDef :: (ApplyUniform f Expr c, ApplyPolyform f Expr c) => Def -> AppList f c
 subtermsDef (Def _ e) = Cons e Nil
 
 fv :: Expr -> [String]
@@ -52,6 +52,7 @@ ssFv expr = nub $ polyfoldr (f :+: g) (Cons expr Nil) []
       case e of
         Def s l -> f l acc \\ [s]
 
+
 test :: IO ()
 test =
   do
@@ -66,3 +67,20 @@ test =
 
     print $ ssFv $ Bop "+" (Var "b") (Let (Def "b" (Bop "+" (Const 7) (Const 0))) (Bop "+" (Const 6) (Var "b")))
     print $ ssFv $ Bop "+" (Var "b") (Let (Def "b" (Bop "+" (Const 7) (Const 0))) (Bop "+" (Const 6) (Var "a")))
+
+
+    putStrLn "polyform functions"
+
+    let renaming n = case n of
+                       "a" -> "r"
+                       "b" -> "z"
+                       _   -> n
+
+    let rename = (\(x :: Expr) r -> case x of Var y -> Var (r y) ; _ -> x) :+: (\(Def s b :: Def) r -> Def (r s) b)
+
+    print $ applyPolyform rename (Var "x") renaming
+    print $ applyPolyform rename (Var "a") renaming
+    print $ applyPolyform rename (Def "b" (Var "a")) renaming
+
+    putStrLn "mapPolyForm"
+    print $ mapPolyForm rename (Cons (Var "a") (Cons (Def "b" (Var "a")) Nil)) renaming
