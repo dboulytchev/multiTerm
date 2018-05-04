@@ -1,74 +1,89 @@
-{-# LANGUAGE TypeFamilies           #-}
-{-# LANGUAGE TypeOperators          #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE FunctionalDependencies #-}
-{-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE FlexibleContexts       #-}
-{-# LANGUAGE UndecidableInstances   #-}
---{-# LANGUAGE AllowAmbiguousTypes    #-}
-{-# LANGUAGE TypeFamilyDependencies #-}
+{-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE TypeOperators              #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE TypeFamilyDependencies     #-}
 {-# LANGUAGE ExistentialQuantification  #-}
-
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 
 module IntrospectionWorkout where
-
 
 infixr 6 :+:
 infixr 6 :|:
 
+-- Product 
 data a :+: b = a :+: b
+
+-- Coproduct
 data a :|: b
+
+-- Singleton
 data U a
 
--- Union of types
-
+-- Membership
 class Member x u
 
 instance Member a (U a)
 instance Member a (a :|: b)
 instance Member a c => Member a (b :|: c)
 
--- End of union
--- Type of polyfunction
+-- Polyfunction with uniform codomain
+{- (u = \Sigma t_i) -> \Pi (t_i -> c) -}
+type family Uniform u c = r | r -> u c where
+  Uniform (a :|: b) c = (a -> c) :+: Uniform b c
+  Uniform (U a)     c = a -> c
 
-type family PolyFun u c = r | r -> u c where
-  PolyFun (a :|: b) c = (a -> c) :+: PolyFun b c
-  PolyFun (U a)     c = a -> c
+-- Type-discriminated application
 
--- End of polyfunction
+class ApplyUniform f a b where
+  applyUniform :: Uniform f b -> a -> b
 
--- Type-discriminated apply
+instance {-# OVERLAPPING #-} ApplyUniform (a :|: c) a b where
+  applyUniform (f :+: _) x = f x
 
-class Apply f a b where
-  apply :: PolyFun f b -> a -> b
+instance  {-# OVERLAPPABLE #-} ApplyUniform y a b => ApplyUniform (x :|: y) a b where
+  applyUniform (_ :+: g) x = applyUniform g x
 
-instance {-# OVERLAPPING #-} Apply (a :|: c) a b where
-  apply (f :+: _) x = f x
+instance ApplyUniform (U a) a b where
+  applyUniform f x = f x
 
-instance  {-# OVERLAPPABLE #-} Apply y a b => Apply (x :|: y) a b where
-  apply (_ :+: g) x = apply g x
+-- End of application
 
-instance Apply (U a) a b where
-  apply f x = f x
+-- Polyfunction with uniform codomain
+{- (u = \Sigma t_i) -> \Pi (t_i -> c -> t_i) -}
+type family Polyform u c = r | r -> u c where
+  Polyform (a :|: b) c = (a -> c -> a) :+: Polyform b c
+  Polyform (U a)     c = a -> c -> a
 
--- End of apply
+-- Type-discriminated application
 
-data AppList f c = Nil | forall a . Apply f a c => Cons a (AppList f c)
+class ApplyPolyform f a b where
+  applyPolyform :: Polyform f b -> a -> b -> a
 
-polymap :: PolyFun f c -> AppList f c -> [c]
+instance {-# OVERLAPPING #-} ApplyPolyform (a :|: c) a b where
+  applyPolyform (f :+: _) x b = f x b
+
+instance  {-# OVERLAPPABLE #-} ApplyPolyform y a b => ApplyPolyform (x :|: y) a b where
+  applyPolyform (_ :+: g) x b = applyPolyform g x b
+  
+instance ApplyPolyform (U a) a b where
+  applyPolyform f x b = f x b
+
+-- End of application
+
+data AppList f c = Nil | forall a . (ApplyUniform f a c, ApplyPolyform f a c) => Cons a (AppList f c)
+
+polymap :: Uniform f c -> AppList f c -> [c]
 polymap _ Nil = []
-polymap f (Cons h t) = apply f h : polymap f t
+polymap f (Cons h t) = applyUniform f h : polymap f t
 
-polyfoldl :: PolyFun f (c -> c) -> AppList f (c -> c) -> c -> c
+polyfoldl :: Uniform f (c -> c) -> AppList f (c -> c) -> c -> c
 polyfoldl _  Nil       acc = acc
-polyfoldl f (Cons h t) acc = polyfoldl f t (apply f h acc)
+polyfoldl f (Cons h t) acc = polyfoldl f t (applyUniform f h acc)
 
-polyfoldr :: PolyFun f (c -> c) -> AppList f (c -> c) -> c -> c
+polyfoldr :: Uniform f (c -> c) -> AppList f (c -> c) -> c -> c
 polyfoldr _  Nil       acc = acc
-polyfoldr f (Cons h t) acc = apply f h (polyfoldr f t acc)
-
+polyfoldr f (Cons h t) acc = applyUniform f h (polyfoldr f t acc)
 
 main :: IO ()
 main = do
@@ -80,8 +95,8 @@ main = do
 --p (Cons h t) = show h ++ p t
 
 --class List l a where
- -- polymap :: PolyFun a c -> l -> [c]
+ -- polymap :: Uniform a c -> l -> [c]
 
---instance (Apply b a b, List l b) => List (a :+: l) b where
-  --polymap f (a :+: b) = apply f a : polymap f b
+--instance (ApplyUniformUniform b a b, List l b) => List (a :+: l) b where
+  --polymap f (a :+: b) = applyUniform f a : polymap f b
 
