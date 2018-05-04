@@ -9,19 +9,25 @@
 {-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE ExistentialQuantification  #-}
 
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+
+module IntrospectionWorkout where
+
+
 infixr 6 :+:
 infixr 6 :|:
-  
+
 data a :+: b = a :+: b
 data a :|: b
-data U a 
+data U a
 
 -- Union of types
 
 class Member x u
 
 instance Member a (U a)
-instance Member a (a :|: b)  
+instance Member a (a :|: b)
 instance Member a c => Member a (b :|: c)
 
 -- End of union
@@ -45,15 +51,29 @@ instance  {-# OVERLAPPABLE #-} Apply y a b => Apply (x :|: y) a b where
   apply (_ :+: g) x = apply g x
 
 instance Apply (U a) a b where
-  apply f x = f x 
-  
+  apply f x = f x
+
 -- End of apply
 
 data AppList f c = Nil | forall a . Apply f a c => Cons a (AppList f c)
 
 polymap :: PolyFun f c -> AppList f c -> [c]
 polymap _ Nil = []
-polymap f (Cons h t) = apply f h : polymap f t 
+polymap f (Cons h t) = apply f h : polymap f t
+
+polyfoldl :: PolyFun f (c -> c) -> AppList f (c -> c) -> c -> c
+polyfoldl _  Nil       acc = acc
+polyfoldl f (Cons h t) acc = polyfoldl f t (apply f h acc)
+
+polyfoldr :: PolyFun f (c -> c) -> AppList f (c -> c) -> c -> c
+polyfoldr _  Nil       acc = acc
+polyfoldr f (Cons h t) acc = apply f h (polyfoldr f t acc)
+
+
+main :: IO ()
+main = do
+  print $ polyfoldl ((\(x :: Int) acc -> x * acc :: Int) :+: (\x acc -> acc + length (x :: String) :: Int)) (Cons "b" (Cons (2 :: Int) (Cons "twitter" Nil))) 0
+  print $ polyfoldr ((\(x :: Int) acc -> x * acc :: Int) :+: (\x acc -> acc + length (x :: String) :: Int)) (Cons "b" (Cons (2 :: Int) (Cons "twitter" Nil))) 0
 
 --p :: ExList -> String
 --p Nil        = ""
@@ -64,4 +84,4 @@ polymap f (Cons h t) = apply f h : polymap f t
 
 --instance (Apply b a b, List l b) => List (a :+: l) b where
   --polymap f (a :+: b) = apply f a : polymap f b
-  
+
