@@ -1,22 +1,22 @@
-{-# LANGUAGE TypeFamilies           #-}
-{-# LANGUAGE TypeOperators          #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE UndecidableInstances   #-}
-{-# LANGUAGE TypeFamilyDependencies #-}
+{-# LANGUAGE TypeFamilies               #-}
+{-# LANGUAGE TypeOperators              #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE AllowAmbiguousTypes        #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE UndecidableInstances       #-}
+{-# LANGUAGE TypeFamilyDependencies     #-}
 {-# LANGUAGE ExistentialQuantification  #-}
-
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-
+{-# LANGUAGE FunctionalDependencies     #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE ScopedTypeVariables        #-}
 
 module SimplExpr where
 
 import Prelude hiding (foldl)
 import IntrospectionWorkout
-import Data.List ((\\), nub)
+import Data.List ((\\), nub, concat)
+import Data.Maybe
 
 data Expr = Var String | Const Int | Bop String Expr Expr | Let Def Expr deriving Show
 data Def  = Def String Expr deriving Show
@@ -39,6 +39,7 @@ class Term t where
                               Just v  -> filter (/= v) a
                               Nothing -> a
 
+{-
 fold'' f t acc = polyfoldr (fold'' f) (subterms t) (applyUniform f (t :: Sub t) acc)
 
 
@@ -50,15 +51,16 @@ y :: ((Uniform f (c -> c) -> c -> c) -> Uniform f (c -> c) -> c -> c) -> Uniform
 y f = f (y f)
 
 fold' f t acc = y (polyfoldl f (subterms t) (applyUniform f t acc)) t acc
-
+-}
 {-toSub :: t -> Sub t
 toSub = undefined
 
 fold' f t acc = polyfoldr (fold f) (subterms t) (applyUniform f (toSub t) acc)
 -}
+  
 instance Term Expr where
   type Var Expr = String
-  type Sub Expr = Expr :|: U Def
+  type Sub Expr = Expr :|: Def :|: U
 
   subterms (Var   _)   = Nil
   subterms (Const _)   = Nil
@@ -72,7 +74,7 @@ instance Term Expr where
 
 instance Term Def where
   type Var Def = String
-  type Sub Def = Expr :|: U Def {-U Expr-}
+  type Sub Def = Expr :|: Def :|: U
 
   subterms (Def _ e) = Cons e Nil
 
@@ -80,21 +82,39 @@ instance Term Def where
 
   binder (Def s _) = Just s
 
+class Term a => FV a where
+  gfv :: a -> [Var a]
+
+instance (Term t, v ~ Var t, Eq v, GeneralizedFv (Sub t) v) => FV t where
+  gfv x =
+    let base = case var x of Nothing -> [] ; Just v -> [v] in
+    let sx   = subterms x in
+    (base ++ (concat $ polymap f sx)) \\ (maybeToList $ binder x)
+
+class GeneralizedFv t v where
+  f :: Uniform t [v]
+
+instance (FV t, v ~ Var t , GeneralizedFv a v) => GeneralizedFv (t :|: a) v where
+  f = gfv :+: f
+  
+instance GeneralizedFv U v where
+  f = undefined
+
 fv :: Expr -> [Var Expr]
-fv expr = nub $ polyfoldr ((\(t :: Expr) -> makeFV t) :+: (\(t :: Def) -> makeFV t)) (Cons expr Nil) []
--- fv expr = nub $ foldl ((\(t :: Expr) -> makeFV t) :+: (\(t :: Def) -> makeFV t)) expr []
+fv expr = nub $ polyfoldr ((\(t :: Expr) -> makeFV t) :+: (\(t :: Def) -> makeFV t) :+: undefined) (Cons expr Nil) []
+-- fv expr = nub $ foldl ((\(t :: Expr) -> makeFV t) :+: (\(t :: Def) -> makeFV t) :+: undefined) expr []
 
 fv' :: Expr -> [String]
-fv' expr = nub $ polyfoldr (f :+: g) (Cons expr Nil) []
+fv' expr = nub $ polyfoldr (f :+: g :+: undefined) (Cons expr Nil) []
   where
     f e acc =
       case e of
         Var   x -> x : acc
-        _ -> polyfoldr (f :+: g) (subterms e) acc
-    g e@(Def s _) acc = polyfoldr (f :+: g) (subterms e) acc \\ [s]
+        _ -> polyfoldr (f :+: g :+: undefined) (subterms e) acc
+    g e@(Def s _) acc = polyfoldr (f :+: g :+: undefined) (subterms e) acc \\ [s]
 
 ssFv :: Expr -> [String]
-ssFv expr = nub $ polyfoldr (f :+: g) (Cons expr Nil) []
+ssFv expr = nub $ polyfoldr (f :+: g :+: undefined) (Cons expr Nil) []
   where
     f e acc =
       case e of

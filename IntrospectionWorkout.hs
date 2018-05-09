@@ -18,20 +18,13 @@ data a :+: b = a :+: b
 data a :|: b
 
 -- Singleton
-data U a
-
--- Membership
-class Member x u
-
-instance Member a (U a)
-instance Member a (a :|: b)
-instance Member a c => Member a (b :|: c)
+data U
 
 -- Polyfunction with uniform codomain
 {- (u = \Sigma t_i) -> \Pi (t_i -> c) -}
 type family Uniform u c = r | r -> u c where
   Uniform (a :|: b) c = (a -> c) :+: Uniform b c
-  Uniform (U a)     c = a -> c
+  --Uniform  U        c = 
 
 -- Type-discriminated application
 
@@ -44,8 +37,8 @@ instance {-# OVERLAPPING #-} ApplyUniform (a :|: c) a b where
 instance  {-# OVERLAPPABLE #-} ApplyUniform y a b => ApplyUniform (x :|: y) a b where
   applyUniform (_ :+: g) x = applyUniform g x
 
-instance ApplyUniform (U a) a b where
-  applyUniform f x = f x
+--instance ApplyUniform (U a) a b where
+--  applyUniform f x = f x
 
 -- End of application
 
@@ -53,7 +46,7 @@ instance ApplyUniform (U a) a b where
 {- (u = \Sigma t_i) -> \Pi (t_i -> c -> t_i) -}
 type family Polyform u c = r | r -> u c where
   Polyform (a :|: b) c = (a -> c -> a) :+: Polyform b c
-  Polyform (U a)     c = a -> c -> a
+--  Polyform (U a)     c = a -> c -> a
 
 -- Type-discriminated application
 
@@ -66,10 +59,22 @@ instance {-# OVERLAPPING #-} ApplyPolyform (a :|: c) a b where
 instance  {-# OVERLAPPABLE #-} ApplyPolyform y a b => ApplyPolyform (x :|: y) a b where
   applyPolyform (_ :+: g) x b = applyPolyform g x b
 
-instance ApplyPolyform (U a) a b where
-  applyPolyform f x b = f x b
+--instance ApplyPolyform (U a) a b where
+--  applyPolyform f x b = f x b
 
 -- End of application
+
+-- Membership
+{-
+class Member x u where
+  prj :: u -> x
+  
+instance {-# OVERLAPPING #-} Member a (a :|: b) where
+  prj = unsafeCoerce 
+  
+instance {-# OVERLAPPABLE #-} Member a c => Member a (b :|: c) where
+  prj = unsafeCoerce
+-}
 
 data AppList f c = Nil | forall a . (Show a, ApplyUniform f a c, ApplyPolyform f a c) => Cons a (AppList f c)
 
@@ -95,11 +100,10 @@ mapPolyForm :: Polyform f c -> AppList f c -> c -> AppList f c
 mapPolyForm _ Nil _ = Nil
 mapPolyForm f (Cons h t) c = Cons (applyPolyform f h c) (mapPolyForm f t c)
 
-
 main :: IO ()
 main = do
-  print $ polyfoldl ((\(x :: Int) acc -> x * acc :: Int) :+: (\x acc -> acc + length (x :: String) :: Int)) (Cons "b" (Cons (2 :: Int) (Cons "twitter" Nil))) 0
-  print $ polyfoldr ((\(x :: Int) acc -> x * acc :: Int) :+: (\x acc -> acc + length (x :: String) :: Int)) (Cons "b" (Cons (2 :: Int) (Cons "twitter" Nil))) 0
+  print $ polyfoldl ((\(x :: Int) acc -> x * acc :: Int) :+: (\x acc -> acc + length (x :: String) :: Int) :+: undefined) (Cons "b" (Cons (2 :: Int) (Cons "twitter" Nil))) 0
+  print $ polyfoldr ((\(x :: Int) acc -> x * acc :: Int) :+: (\x acc -> acc + length (x :: String) :: Int) :+: undefined) (Cons "b" (Cons (2 :: Int) (Cons "twitter" Nil))) 0
 
 --p :: ExList -> String
 --p Nil        = ""

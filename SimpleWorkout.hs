@@ -14,6 +14,14 @@ make (Lambda s _) [e]    = Lambda s e
 make (App    _ _) [l, r] = App l r
 make  t            _     = t
 
+class Term t where
+  type Var t :: *
+  type Sub t :: *
+    
+  uniform   :: ((a -> Sub t -> a    ) -> a -> t -> a) -> a -> t -> a
+  polyform  :: ((a -> Sub t -> Sub t) -> a -> t -> t) -> a -> t -> t
+
+
 gfold :: ((a -> Expr -> b) -> a -> Expr -> b) -> a -> Expr -> b
 gfold f a e = f (gfold f) a e
 
