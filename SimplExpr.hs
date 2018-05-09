@@ -70,7 +70,8 @@ instance Term Expr where
   var (Var x) = Just x
   var _ = Nothing
 
-  binder _ = Nothing
+  binder (Let (Def a _) _) = Just a
+  binder _                 = Nothing
 
 instance Term Def where
   type Var Def = String
@@ -130,10 +131,11 @@ ssFv expr = nub $ polyfoldr (f :+: g :+: undefined) (Cons expr Nil) []
 test :: IO ()
 test =
   do
-    print $ fv    $ Bop "+" (Var "a") (Let (Def "b" (Bop "+" (Const 7) (Const 0))) (Bop "+" (Const 6) (Var "b")))
-    print $ fv    $ Bop "+" (Var "a") (Let (Def "b" (Bop "+" (Const 7) (Const 0))) (Bop "+" (Const 6) (Var "a")))
-    print $ fv    $ Bop "+" (Var "b") (Let (Def "b" (Bop "+" (Const 7) (Const 0))) (Bop "+" (Const 6) (Var "b")))
-    print $ fv    $ Bop "+" (Var "b") (Let (Def "b" (Bop "+" (Const 7) (Const 0))) (Bop "+" (Const 6) (Var "a")))
+    print $ gfv    $ Def "b" (Var "b")
+    print $ gfv    $ Bop "+" (Var "a") (Let (Def "b" (Bop "+" (Const 7) (Const 0))) (Bop "+" (Const 6) (Var "b")))
+    print $ gfv    $ Bop "+" (Var "a") (Let (Def "b" (Bop "+" (Const 7) (Const 0))) (Bop "+" (Const 6) (Var "a")))
+    print $ gfv    $ Bop "+" (Var "b") (Let (Def "b" (Bop "+" (Const 7) (Const 0))) (Bop "+" (Const 6) (Var "b")))
+    print $ gfv    $ Bop "+" (Var "b") (Let (Def "b" (Bop "+" (Const 7) (Const 0))) (Bop "+" (Const 6) (Var "a")))
 
 
     print $ fv'   $ Bop "+" (Var "a") (Let (Def "b" (Bop "+" (Const 7) (Const 0))) (Bop "+" (Const 6) (Var "b")))
