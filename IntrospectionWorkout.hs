@@ -24,7 +24,7 @@ data U
 {- (u = \Sigma t_i) -> \Pi (t_i -> c) -}
 type family Uniform u c = r | r -> u c where
   Uniform (a :|: b) c = (a -> c) :+: Uniform b c
-  --Uniform  U        c = 
+  --Uniform  U        c =
 
 -- Type-discriminated application
 
@@ -41,6 +41,18 @@ instance  {-# OVERLAPPABLE #-} ApplyUniform y a b => ApplyUniform (x :|: y) a b 
 --  applyUniform f x = f x
 
 -- End of application
+
+type family Transform u = r | r -> u where
+  Transform (a :|: b) = (a -> a) :+: Transform b
+
+class ApplyTransform u a where
+  applyTransform :: Transform u -> a -> a
+
+instance {-# OVERLAPPING #-}ApplyTransform (a :|: b) a where
+  applyTransform (f :+: _) x = f x
+
+instance {-# OVERlAPPABLE #-} ApplyTransform b c => ApplyTransform (a :|: b) c where
+  applyTransform (_ :+: f) x = applyTransform f x
 
 -- Polyfunction with uniform codomain
 {- (u = \Sigma t_i) -> \Pi (t_i -> c -> t_i) -}
@@ -68,15 +80,15 @@ instance  {-# OVERLAPPABLE #-} ApplyPolyform y a b => ApplyPolyform (x :|: y) a 
 {-
 class Member x u where
   prj :: u -> x
-  
+
 instance {-# OVERLAPPING #-} Member a (a :|: b) where
-  prj = unsafeCoerce 
-  
+  prj = unsafeCoerce
+
 instance {-# OVERLAPPABLE #-} Member a c => Member a (b :|: c) where
   prj = unsafeCoerce
 -}
 
-data AppList f c = Nil | forall a . (Show a, ApplyUniform f a c, ApplyPolyform f a c) => Cons a (AppList f c)
+data AppList f c = Nil | forall a . (Show a, ApplyUniform f a c, ApplyPolyform f a c, ApplyTransform f a) => Cons a (AppList f c)
 
 instance Show (AppList f c) where
   show Nil = "[]"
@@ -94,11 +106,13 @@ polyfoldr :: Uniform f (c -> c) -> AppList f (c -> c) -> c -> c
 polyfoldr _  Nil       acc = acc
 polyfoldr f (Cons h t) acc = applyUniform f h (polyfoldr f t acc)
 
-
-
 mapPolyForm :: Polyform f c -> AppList f c -> c -> AppList f c
 mapPolyForm _ Nil _ = Nil
 mapPolyForm f (Cons h t) c = Cons (applyPolyform f h c) (mapPolyForm f t c)
+
+mapTransform :: Transform f -> AppList f c -> AppList f c
+mapTransform _ Nil = Nil
+mapTransform f (Cons h t) = Cons (applyTransform f h) (mapTransform f t)
 
 main :: IO ()
 main = do

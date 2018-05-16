@@ -1,5 +1,5 @@
-{-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE FunctionalDependencies #-}
+{-# LANGUAGE MultiParamTypeClasses  #-}
 {-# LANGUAGE FlexibleInstances      #-}
 {-# LANGUAGE FlexibleContexts       #-}
 {-# LANGUAGE TypeOperators          #-}
@@ -30,7 +30,7 @@ instance Term Def where
 
   fresh _ = undefined
 
-  
+
 instance Term Expr where
   type Var Expr = String
   type Sub Expr = [Expr] :+: [Def]
@@ -54,18 +54,18 @@ instance Term Expr where
   rename x       _ = x
 
   fresh vs = Var $ head $ names \\ vs
-    where names = (\ l -> l ++ [x ++ name | name <- names, x <- l]) $ map (:[]) ['a'..'z']  
+    where names = (\ l -> l ++ [x ++ name | name <- names, x <- l]) $ map (:[]) ['a'..'z']
 
 elim0 t = case t of
             Bop "+" e (Const 0) -> e
             Bop "+" (Const 0) e -> e
             _                   -> t
 
-rename_name r t = case t of 
-                    Var s             -> Var $ r s 
+rename_name r t = case t of
+                    Var s             -> Var $ r s
                     Let (Def s e1) e2 -> Let (Def (r s) e1) e2
-                    _                 -> t 
-                   
+                    _                 -> t
+
 expand t = case t of
               Const n -> if n > 1 then Bop "+" (Const $ n-1) (Const 1) else t
               _       -> t
@@ -80,7 +80,7 @@ expr1 = Bop "+" (Var "a") (Let (Def "b" (Bop "+" (Const 1) (Const 0))) (Bop "+" 
 expr2 = Bop "+" (Var "a") (Let (Def "b" (Bop "+" (Const 7) (Const 0))) (Bop "+" (Const 6) (Var "b")))
 
 vars a t = case t of
-             Var v -> v:a         
+             Var v -> v:a
              _     -> a
 
 varsDef a (Def v e) = v `delete` a
@@ -116,6 +116,6 @@ main = do
 
   putStrLn $ show $ fv expr1
   putStrLn $ show $ fv expr2
-  
+
   putStrLn $ show $ subst expr1 "a" (Bop "+" (Var "a") (Const 4))
   putStrLn $ show $ subst expr2 "b" (Bop "+" (Var "b") (Const 4))
