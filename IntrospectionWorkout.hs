@@ -5,6 +5,8 @@
 {-# LANGUAGE TypeFamilyDependencies     #-}
 {-# LANGUAGE ExistentialQuantification  #-}
 {-# LANGUAGE ScopedTypeVariables        #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE UndecidableInstances       #-}
 
 module IntrospectionWorkout where
 
@@ -20,14 +22,112 @@ data a :|: b
 -- Singleton
 data U
 
+type family Eithery u = r | r -> u where
+  Eithery (a :|: b) = Either a (Eithery b)
+
+class Prj u a where
+  prj :: a -> Eithery u
+
+instance {-# OVERLAPPING #-} Prj (a :|: b) a where
+  prj a = Left a
+
+instance {-# OVERLAPPABLE #-} Prj b c => Prj (a :|: b) c where
+  prj a = Right (prj a)
+
+{-class MultiPrj u where
+  multiPrj :: Uniform u (Eithery u)
+
+instance MultiPrj U where
+  multiPrj = undefined
+
+instance {-# OVERLAPPING #-} (Prj (a :|: b) a, MultiPrj b) => MultiPrj (a :|: b) where
+  multiPrj = prj :+: multiPrj
+-}
+
+class MultiPrj u z where
+  multiPrj :: Uniform u (Eithery z)
+
+instance {-# OVERLAPPING #-} MultiPrj U U where
+  multiPrj = undefined
+
+instance {-# OVERLAPPING #-} (Prj (a :|: b) a, MultiPrj b (a :|: b)) => MultiPrj (a :|: b) (a :|: b) where
+  multiPrj = prj :+: multiPrj
+
+instance {-# OVERLAPPABLE #-} (MultiPrj b b, ComposeUniform b (Eithery b) (Either a (Eithery b))) => MultiPrj b (a :|: b) where
+  multiPrj = composeUniform multiPrj Right
+
+{-instance {-# OVERLAPPABLE #-} (c ~ b, MultiPrj c b) => MultiPrj b (a :|: b) where
+  multiPrj = let (_ :+: x) = multiPrj in x-}
+
+{-instance {-# OVERLAPPABLE #-} (z ~ (a :|: b), MultiPrj z z) => MultiPrj b z where
+  multiPrj = let (_ :+: mprj) = (multiPrj :: Uniform z (Eithery z)) in mprj
+-}
+type family Reify u = r | r -> u where
+  Reify (a :|: b) = [a] :+: Reify b
+
+class Default u where
+  def :: Reify u
+
+instance Default U where
+  def = undefined
+
+instance Default b => Default (a :|: b) where
+  def = [] :+: def
+
+class Default u => Product u where
+  insert :: [Eithery u] -> Reify u
+  insert = foldl insert' def
+
+  insert' :: Reify u -> Eithery u -> Reify u
+
+instance Product U where
+  insert' = undefined
+
+instance Product b => Product (a :|: b) where
+  insert' (as :+: bs) (Left  a) = (as ++ [a]) :+: bs
+  insert' (as :+: bs) (Right b) = as :+: (insert' bs b)
+
+reify :: (Product u, MultiPrj u u) => AppList u (Eithery u) -> Reify u
+reify x = insert $ polymap multiPrj x
+
+
+{-reify :: (Product u, MultiPrj u u) => AppList u (Eithery u) -> Reify u
+reify x = insert $ polymap multiPrj x
+-}
+
+
+{-class ApplyReify a u where
+  applyReify :: a -> Reify u -> Reify u
+
+instance ApplyReify a (a :|: b) where
+  applyReify a (as :+: bs) = ((as ++ [a]) :+: bs)
+
+instance ApplyReify c b => ApplyReify c (a :|: b) where
+  applyReify c (as :+: bs) = as :+: applyReify c bs
+-}
 -- Polyfunction with uniform codomain
 {- (u = \Sigma t_i) -> \Pi (t_i -> c) -}
 type family Uniform u c = r | r -> u c where
   Uniform (a :|: b) c = (a -> c) :+: Uniform b c
   --Uniform  U        c =
+{-
+class ShouldBeEasier b where
+  shouldBeEasier :: Uniform b (Eithery b) -> Uniform b (Eithery (a :|: b))
+
+instance ShouldBeEasier b where
+  shouldBeEasier (f :+: fs) = (Right . f) :+: shouldBeEasier fs
+-}
+class ComposeUniform f b c where
+  composeUniform :: Uniform f b -> (b -> c) -> Uniform f c
+
+instance ComposeUniform U b c where
+  composeUniform _ _ = undefined
+
+instance ComposeUniform fs b c => ComposeUniform (f :|: fs) b c where
+  composeUniform (f :+: fs) g = (\x -> g (f x) ) :+: (composeUniform fs g)
+
 
 -- Type-discriminated application
-
 class ApplyUniform f a b where
   applyUniform :: Uniform f b -> a -> b
 
@@ -116,9 +216,18 @@ mapTransform f (Cons h t) = Cons (applyTransform f h) (mapTransform f t)
 
 main :: IO ()
 main = do
+  {-let (ints :+: _) = reify (Cons (42 :: Int) (Cons (13 :: Int) Nil)) :: Reify (Int :|: U)
+  print $ ints
+-}
+
+  let (ints :+: strings :+: _) = reify (Cons (42 :: Int) (Cons "c" (Cons (13 :: Int) (Cons "abc" Nil)))) :: Reify (Int :|: String :|: U)
+  print $ ints
+  print $ strings
+
+{-
   print $ polyfoldl ((\(x :: Int) acc -> x * acc :: Int) :+: (\x acc -> acc + length (x :: String) :: Int) :+: undefined) (Cons "b" (Cons (2 :: Int) (Cons "twitter" Nil))) 0
   print $ polyfoldr ((\(x :: Int) acc -> x * acc :: Int) :+: (\x acc -> acc + length (x :: String) :: Int) :+: undefined) (Cons "b" (Cons (2 :: Int) (Cons "twitter" Nil))) 0
-
+-}
 --p :: ExList -> String
 --p Nil        = ""
 --p (Cons h t) = show h ++ p t

@@ -29,7 +29,7 @@ class Term t where
   var      :: t -> Maybe (Var t)
   binder   :: t -> Maybe (Var t)
   subterms :: t -> AppList (Sub t) c
-  make     :: t -> AppList (Sub t) c -> t
+  make     :: t -> AppList (Sub t) (Eithery (Sub t)) -> t
   makeFV   :: (Eq (Var t)) => t -> [Var t] -> [Var t]
 {-  rename   :: t -> Var t -> t
 -}
@@ -76,8 +76,8 @@ instance Term Expr where
   binder (Let (Def a _) _) = Just a
   binder _                 = Nothing
 
-  make (Bop b _ _) (Cons l (Cons r Nil)) = Bop b (unsafeCoerce l) (unsafeCoerce r)
-  make (Let _ _  ) (Cons d (Cons e Nil)) = Let (unsafeCoerce d) (unsafeCoerce e)
+  make (Bop b _ _) subs@(Cons l (Cons r Nil)) = let ([l', r'] :+: [] :+: _) = reify subs in Bop b l' r' --(unsafeCoerce l) (unsafeCoerce r)
+  make (Let _ _  ) subs@(Cons d (Cons e Nil)) = let ([e'] :+: [d'] :+: _)  = reify subs in Let d' e' --(unsafeCoerce d) (unsafeCoerce e)
   make t           _                     = t
 
 instance ShallowRename Expr where
@@ -102,7 +102,7 @@ instance Term Def where
 
   binder (Def s _) = Just s
 
-  make (Def s _) (Cons e Nil) = Def s (unsafeCoerce e)
+  make (Def s _) x@(Cons e Nil) = let ([e' :: Expr ] :+: [] :+: _) = reify x in Def s e' -- Def s (unsafeCoerce e)
 
 instance ShallowRename Def where
   rename (Def _ e) x = Def x e
