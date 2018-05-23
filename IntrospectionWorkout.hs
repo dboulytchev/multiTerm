@@ -34,16 +34,6 @@ instance {-# OVERLAPPING #-} Prj (a :|: b) a where
 instance {-# OVERLAPPABLE #-} Prj b c => Prj (a :|: b) c where
   prj a = Right (prj a)
 
-{-class MultiPrj u where
-  multiPrj :: Uniform u (Eithery u)
-
-instance MultiPrj U where
-  multiPrj = undefined
-
-instance {-# OVERLAPPING #-} (Prj (a :|: b) a, MultiPrj b) => MultiPrj (a :|: b) where
-  multiPrj = prj :+: multiPrj
--}
-
 class MultiPrj u z where
   multiPrj :: Uniform u (Eithery z)
 
@@ -56,12 +46,6 @@ instance {-# OVERLAPPING #-} (Prj (a :|: b) a, MultiPrj b (a :|: b)) => MultiPrj
 instance {-# OVERLAPPABLE #-} (MultiPrj b b, ComposeUniform b (Eithery b) (Either a (Eithery b))) => MultiPrj b (a :|: b) where
   multiPrj = composeUniform multiPrj Right
 
-{-instance {-# OVERLAPPABLE #-} (c ~ b, MultiPrj c b) => MultiPrj b (a :|: b) where
-  multiPrj = let (_ :+: x) = multiPrj in x-}
-
-{-instance {-# OVERLAPPABLE #-} (z ~ (a :|: b), MultiPrj z z) => MultiPrj b z where
-  multiPrj = let (_ :+: mprj) = (multiPrj :: Uniform z (Eithery z)) in mprj
--}
 type family Reify u = r | r -> u where
   Reify (a :|: b) = [a] :+: Reify b
 
@@ -91,32 +75,11 @@ reify :: (Product u, MultiPrj u u) => AppList u (Eithery u) -> Reify u
 reify x = insert $ polymap multiPrj x
 
 
-{-reify :: (Product u, MultiPrj u u) => AppList u (Eithery u) -> Reify u
-reify x = insert $ polymap multiPrj x
--}
-
-
-{-class ApplyReify a u where
-  applyReify :: a -> Reify u -> Reify u
-
-instance ApplyReify a (a :|: b) where
-  applyReify a (as :+: bs) = ((as ++ [a]) :+: bs)
-
-instance ApplyReify c b => ApplyReify c (a :|: b) where
-  applyReify c (as :+: bs) = as :+: applyReify c bs
--}
 -- Polyfunction with uniform codomain
 {- (u = \Sigma t_i) -> \Pi (t_i -> c) -}
 type family Uniform u c = r | r -> u c where
   Uniform (a :|: b) c = (a -> c) :+: Uniform b c
-  --Uniform  U        c =
-{-
-class ShouldBeEasier b where
-  shouldBeEasier :: Uniform b (Eithery b) -> Uniform b (Eithery (a :|: b))
 
-instance ShouldBeEasier b where
-  shouldBeEasier (f :+: fs) = (Right . f) :+: shouldBeEasier fs
--}
 class ComposeUniform f b c where
   composeUniform :: Uniform f b -> (b -> c) -> Uniform f c
 
@@ -171,11 +134,6 @@ instance {-# OVERLAPPING #-} ApplyPolyform (a :|: c) a b where
 instance  {-# OVERLAPPABLE #-} ApplyPolyform y a b => ApplyPolyform (x :|: y) a b where
   applyPolyform (_ :+: g) x b = applyPolyform g x b
 
---instance ApplyPolyform (U a) a b where
---  applyPolyform f x b = f x b
-
--- End of application
-
 -- Membership
 {-
 class Member x u where
@@ -228,13 +186,5 @@ main = do
   print $ polyfoldl ((\(x :: Int) acc -> x * acc :: Int) :+: (\x acc -> acc + length (x :: String) :: Int) :+: undefined) (Cons "b" (Cons (2 :: Int) (Cons "twitter" Nil))) 0
   print $ polyfoldr ((\(x :: Int) acc -> x * acc :: Int) :+: (\x acc -> acc + length (x :: String) :: Int) :+: undefined) (Cons "b" (Cons (2 :: Int) (Cons "twitter" Nil))) 0
 -}
---p :: ExList -> String
---p Nil        = ""
---p (Cons h t) = show h ++ p t
 
---class List l a where
- -- polymap :: Uniform a c -> l -> [c]
-
---instance (ApplyUniformUniform b a b, List l b) => List (a :+: l) b where
-  --polymap f (a :+: b) = applyUniform f a : polymap f b
 
