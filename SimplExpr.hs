@@ -28,9 +28,10 @@ class Term t where
 
   var      :: t -> Maybe (Var t)
   binder   :: t -> Maybe (Var t)
-  subterms :: t -> AppList (Sub t) c
-  make     :: t -> AppList (Sub t) (Eithery (Sub t)) -> t
+  subterms :: t -> AppList (Sub t) 
+  make     :: t -> AppList (Sub t) -> t
   makeFV   :: (Eq (Var t)) => t -> [Var t] -> [Var t]
+  
 {-  rename   :: t -> Var t -> t
 -}
   {-unifold :: ((AppList (Sub t) a -> a -> a) -> t -> a -> a ) -> t -> a -> a
@@ -189,6 +190,34 @@ instance (FV t, v ~ Var t , GeneralizedFv a v) => GeneralizedFv (t :|: a) v wher
 instance GeneralizedFv U v where
   f = undefined
 
+----------
+--- Rewrite workout
+----------
+-- Transform (Sub t) -> t -> t  
+
+class Term t => Rewrite' t where
+  rewrite' :: Transform (Sub t) -> t -> t
+
+--f = f1 :+: f2 :+: ... :+: fk
+
+--(rewrite f) = ti -> ti
+
+class Term t => Apply t where
+  apply :: (t -> t) -> Transform (Sub t) -> Transform (Sub t)
+
+instance Term t => Apply t where
+  apply f (... :+: ... :+: ...) = undefined
+
+instance (ApplyTransform (Sub t) t, Term t) => Rewrite' t where
+  rewrite' f t =
+    let t'                      = applyTransform f t           in
+    let rr :: t -> t            = rewrite' f                   in
+    let ff :: Transform (Sub t) = apply rr f                   in
+    let ss                      = mapTransform ff (subterms t) in 
+    make t' ss
+    
+----------
+
 fv :: Expr -> [Var Expr]
 fv expr = nub $ polyfoldr ((\(t :: Expr) -> makeFV t) :+: (\(t :: Def) -> makeFV t) :+: undefined) (Cons expr Nil) []
 -- fv expr = nub $ foldl ((\(t :: Expr) -> makeFV t) :+: (\(t :: Def) -> makeFV t) :+: undefined) expr []
@@ -220,13 +249,16 @@ test =
     let t = Bop "+" (Var "a") (Let (Def "b" (Bop "+" (Const 7) (Const 0))) (Bop "+" (Const 6) (Var "b")))
     print t
     putStrLn ""
-
+{-
     print $ grename t "c"
     putStrLn ""
 
     print $ grewrite t
     putStrLn ""
-
+-}
+    print $ rewrite' (rewrite :+: rewrite :+: undefined) t
+    putStrLn ""
+{-
     print $ gfold t []
     putStrLn ""
 
@@ -263,3 +295,4 @@ test =
 
     putStrLn "mapPolyForm"
     print $ mapPolyForm rename (Cons (Var "a") (Cons (Def "b" (Var "a")) Nil)) renaming -}
+-}
