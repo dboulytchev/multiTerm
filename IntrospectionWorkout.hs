@@ -115,7 +115,7 @@ class Member t ct
 instance {-# OVERLAPPING #-} Member t (t :|: q)
 
 instance {-# OVERLAPPABLE #-} Member t p => Member t (q :|: p)
- 
+
 
 
 type family Transform u = r | r -> u where
@@ -127,7 +127,7 @@ class ApplyTransform u a where
 instance {-# OVERLAPPING #-}ApplyTransform (a :|: b) a where
   applyTransform (f :+: _) x = f x
 
-instance {-# OVERLAPPING #-} ApplyTransform b c => ApplyTransform (a :|: b) c where
+instance {-# OVERLAPPABLE #-} ApplyTransform b c => ApplyTransform (a :|: b) c where
   applyTransform (_ :+: f) x = applyTransform f x
 
 --instance {-# OVERLAPPABLE #-} Member t tc => ApplyTransform tc t where

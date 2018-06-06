@@ -28,10 +28,10 @@ class Term t where
 
   var      :: t -> Maybe (Var t)
   binder   :: t -> Maybe (Var t)
-  subterms :: t -> AppList (Sub t) 
+  subterms :: t -> AppList (Sub t)
   make     :: t -> AppList (Sub t) -> t
   makeFV   :: (Eq (Var t)) => t -> [Var t] -> [Var t]
-  
+
 {-  rename   :: t -> Var t -> t
 -}
   {-unifold :: ((AppList (Sub t) a -> a -> a) -> t -> a -> a ) -> t -> a -> a
@@ -193,7 +193,7 @@ instance GeneralizedFv U v where
 ----------
 --- Rewrite workout
 ----------
--- Transform (Sub t) -> t -> t  
+-- Transform (Sub t) -> t -> t
 
 class Term t => Rewrite' t where
   rewrite' :: Transform (Sub t) -> t -> t
@@ -202,20 +202,30 @@ class Term t => Rewrite' t where
 
 --(rewrite f) = ti -> ti
 
-class Term t => Apply t where
-  apply :: (t -> t) -> Transform (Sub t) -> Transform (Sub t)
+class Term t => Apply t sub where
+  apply :: (t -> t) -> Transform sub -> Transform sub
 
-instance Term t => Apply t where
-  apply f (... :+: ... :+: ...) = undefined
+instance Term t => Apply t U where
+  apply _ _ = undefined
 
-instance (ApplyTransform (Sub t) t, Term t) => Rewrite' t where
+instance {-# OVERLAPPING #-} Term t => Apply t (t :|: a) where
+  apply f (_ :+: fs ) = f :+: fs
+
+instance {-# OVERLAPPABLE #-} (Term t, Apply t b) => Apply t (a :|: b) where
+  apply f (a :+: fs) = a :+: apply f fs
+
+instance (Apply t (Sub t), ApplyTransform (Sub t) t, Term t) => Rewrite' t where
   rewrite' f t =
     let t'                      = applyTransform f t           in
-    let rr :: t -> t            = rewrite' f                   in
-    let ff :: Transform (Sub t) = apply rr f                   in
-    let ss                      = mapTransform ff (subterms t) in 
+    let ss                      = mapTransform f (subterms t') in
     make t' ss
-    
+
+--    let rr :: t -> t            = rewrite' f                   in
+ --   let ff :: Transform (Sub t) = apply rr f                   in
+  --  let t'                      = applyTransform f t           in
+   -- let ss                      = mapTransform ff (subterms t') in
+    --make t' ss
+
 ----------
 
 fv :: Expr -> [Var Expr]
@@ -246,6 +256,22 @@ ssFv expr = nub $ polyfoldr (f :+: g :+: undefined) (Cons expr Nil) []
 test :: IO ()
 test =
   do
+
+    {-let t = (Let (Def "b" (Bop "+" (Const 7) (Const 0))) (Bop "+" (Const 6) (Var "b")))
+    print t
+    putStrLn ""
+
+    print $ rewrite' (rewrite :+: rewrite :+: undefined) t
+    putStrLn ""
+-}
+    let t = Def "b" (Bop "+" (Const 7) (Const 0))
+    print t
+    putStrLn ""
+
+    print $ rewrite' (rewrite :+: rewrite :+: undefined) t
+    putStrLn ""
+
+
     let t = Bop "+" (Var "a") (Let (Def "b" (Bop "+" (Const 7) (Const 0))) (Bop "+" (Const 6) (Var "b")))
     print t
     putStrLn ""
@@ -256,7 +282,11 @@ test =
     print $ grewrite t
     putStrLn ""
 -}
-    print $ rewrite' (rewrite :+: rewrite :+: undefined) t
+
+    let ff :: Transform (Sub Expr) = rewrite :+: rewrite :+: undefined
+    let ff'  = apply (rewrite' ff  :: Expr -> Expr) ff
+    let ff'' = apply (rewrite' ff' :: Def  -> Def ) ff'
+    print $ rewrite' ff'' t
     putStrLn ""
 {-
     print $ gfold t []
