@@ -126,7 +126,6 @@ instance ComposeUniform U b c where
 instance ComposeUniform fs b c => ComposeUniform (f :|: fs) b c where
   composeUniform (f :+: fs) g = (\x -> g (f x) ) :+: (composeUniform fs g)
 
-
 -- Type-discriminated application
 class ApplyUniform f a where
   applyUniform :: Uniform f b -> a -> b
@@ -142,6 +141,20 @@ instance  {-# OVERLAPPABLE #-} ApplyUniform y a => ApplyUniform (x :|: y) a wher
 
 -- End of application
 
+
+
+-----------
+--- Enforcements
+-----------
+
+class Member t ct
+
+instance {-# OVERLAPPING #-} Member t (t :|: q)
+
+instance {-# OVERLAPPABLE #-} Member t p => Member t (q :|: p)
+ 
+
+
 type family Transform u = r | r -> u where
   Transform (a :|: b) = (a -> a) :+: Transform b
 
@@ -151,8 +164,11 @@ class ApplyTransform u a where
 instance {-# OVERLAPPING #-}ApplyTransform (a :|: b) a where
   applyTransform (f :+: _) x = f x
 
-instance {-# OVERlAPPABLE #-} ApplyTransform b c => ApplyTransform (a :|: b) c where
+instance {-# OVERLAPPING #-} ApplyTransform b c => ApplyTransform (a :|: b) c where
   applyTransform (_ :+: f) x = applyTransform f x
+
+--instance {-# OVERLAPPABLE #-} Member t tc => ApplyTransform tc t where
+  --applyTransform = undefined
 
 -- Polyfunction with uniform codomain
 {- (u = \Sigma t_i) -> \Pi (t_i -> c -> t_i) -}
