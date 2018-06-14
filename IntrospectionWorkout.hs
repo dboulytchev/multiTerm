@@ -124,7 +124,7 @@ type family Transform u = r | r -> u where
 class ApplyTransform u a where
   applyTransform :: Transform u -> a -> a
 
-instance {-# OVERLAPPING #-}ApplyTransform (a :|: b) a where
+instance {-# OVERLAPPING #-} ApplyTransform (a :|: b) a where
   applyTransform (f :+: _) x = f x
 
 instance {-# OVERLAPPABLE #-} ApplyTransform b c => ApplyTransform (a :|: b) c where

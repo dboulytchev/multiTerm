@@ -216,15 +216,14 @@ instance {-# OVERLAPPABLE #-} (Term t, Apply t b) => Apply t (a :|: b) where
 
 instance (Apply t (Sub t), ApplyTransform (Sub t) t, Term t) => Rewrite' t where
   rewrite' f t =
+    
+    {-
+    let rr :: t -> t            = rewrite' f                   in
+    let ff :: Transform (Sub t) = apply rr f                   in
+    -}
     let t'                      = applyTransform f t           in
     let ss                      = mapTransform f (subterms t') in
     make t' ss
-
---    let rr :: t -> t            = rewrite' f                   in
- --   let ff :: Transform (Sub t) = apply rr f                   in
-  --  let t'                      = applyTransform f t           in
-   -- let ss                      = mapTransform ff (subterms t') in
-    --make t' ss
 
 ----------
 
@@ -253,6 +252,89 @@ ssFv expr = nub $ polyfoldr (f :+: g :+: undefined) (Cons expr Nil) []
     g e acc =
       case e of
         Def s l -> f l acc \\ [s]
+
+type family ShallowRewriter t g = r | r -> t g where
+  ShallowRewriter t g = Transform g -> Transform g -> t -> t
+
+class Term t => GoodShallowRewrite t where
+  goodShallowRewrite :: ShallowRewriter t (Sub t)
+    
+instance (ApplyTransform (Sub t) t, Term t) => GoodShallowRewrite t where
+  goodShallowRewrite deep shallow t =
+    let t' = applyTransform shallow t in
+    make t' $ mapTransform deep (subterms t')
+
+type family LiftedRewriter t g = r | r -> t g where
+  LiftedRewriter (a :|: b) g = ShallowRewriter a g :+: LiftedRewriter b g
+
+class LiftRewriter t g where
+  liftRewriter :: LiftedRewriter t g
+
+instance (Term a, g ~ Sub a, ApplyTransform (Sub a) a, LiftRewriter b g) => LiftRewriter (a :|: b) g where
+  liftRewriter = goodShallowRewrite :+: liftRewriter
+    
+instance LiftRewriter U g where
+  liftRewriter = undefined
+
+class ApplyRewriter t g where
+  apply' :: LiftedRewriter t g -> Transform g -> Transform g -> Transform t
+
+instance ApplyRewriter U g where
+  apply' _ _ _ = undefined
+
+instance (Term t, ApplyRewriter q g) => ApplyRewriter (t :|: q) g where
+  apply' ((t :: Transform g -> Transform g -> t -> t) :+: (q :: LiftedRewriter q g)) (a :: Transform g) (b :: Transform g) = 
+    let f :: t -> t      = t a b        in 
+    let g :: Transform q = apply' q a b in
+    f :+: g
+  
+apply'' :: LiftedRewriter (Sub Expr) (Sub Expr) -> Transform (Sub Expr) -> Transform (Sub Expr) -> Transform (Sub Expr)
+apply'' (f :+: g :+: h) a b = f a b :+: g a b :+: undefined
+
+
+class Term t => DeepRewriter' t where
+  rewrite'' :: t -> Transform (Sub t) -> Transform (Sub t)
+
+instance (Term t, LiftRewriter (Sub t) (Sub t), ApplyRewriter (Sub t) (Sub t)) => DeepRewriter' t where
+  rewrite'' _ shallow =
+    let fs = apply'  (liftRewriter :: LiftedRewriter (Sub t) (Sub t)) (fs :: Transform (Sub t)) (shallow :: Transform (Sub t)) in    
+    fs
+    
+rr shallow = 
+  --let fs  = apply'' (liftRewriter :: LiftedRewriter (Sub Expr) (Sub Expr)) (fs  :: Transform (Sub Expr)) (shallow :: Transform (Sub Expr)) in
+  let fs' = apply'  (liftRewriter :: LiftedRewriter (Sub Expr) (Sub Expr)) (fs' :: Transform (Sub Expr)) (shallow :: Transform (Sub Expr)) in    
+  fs'
+  
+{-
+rr shallow =  
+  let fs = (goodShallowRewrite fs shallow :: Expr -> Expr) :+: (goodShallowRewrite fs shallow :: Def -> Def) :+: undefined in
+  fs
+-}
+
+{-
+rr shallow =
+  let fs = (goodShallowRewrite fs shallow :: Expr -> Expr) :+: (goodShallowRewrite fs shallow :: Def -> Def) :+: undefined in
+  fs
+-}
+
+{-
+rr f@(e :+: d :+: u) =
+  let fs =
+        (\ (fs :: Transform (Sub Expr)) (f :: Transform (Sub Expr)) (e :: Expr) ->
+           let e' = applyTransform f e in
+             let ss = mapTransform fs (subterms e') in
+               make e' ss
+        ) fs f :+: 
+        (\ fs f (d :: Def) ->
+           let d' = applyTransform f d in
+             let ss = mapTransform fs (subterms d') in
+               make d' ss
+        ) fs f :+: undefined
+  in
+  fs
+-}
+  
+
 test :: IO ()
 test =
   do
@@ -268,26 +350,43 @@ test =
     print t
     putStrLn ""
 
-    print $ rewrite' (rewrite :+: rewrite :+: undefined) t
+
+
+--    mapTransform (rewrite :+: (\ t -> make t $ mapTransform (rewrite :+: rewrite :+: undefined) (subterms t)) :+: undefined)
+    
+      
+          
+    print $ applyTransform ((rewrite'' t ((rewrite :+: rewrite :+: undefined) :: Transform (Sub Def))) :: Transform (Sub Expr)) (t :: Def)
+    print $ applyTransform (rr $ (rewrite :: Expr -> Expr) :+: (rewrite :: Def -> Def) :+: undefined) t
     putStrLn ""
 
 
     let t = Bop "+" (Var "a") (Let (Def "b" (Bop "+" (Const 7) (Const 0))) (Bop "+" (Const 6) (Var "b")))
     print t
     putStrLn ""
+    
 {-
     print $ grename t "c"
-    putStrLn ""
+    putStrLn ""or
 
     print $ grewrite t
     putStrLn ""
 -}
 
-    let ff :: Transform (Sub Expr) = rewrite :+: rewrite :+: undefined
-    let ff'  = apply (rewrite' ff  :: Expr -> Expr) ff
-    let ff'' = apply (rewrite' ff' :: Def  -> Def ) ff'
-    print $ rewrite' ff'' t
+{-
+
+   mapTransform (rewrite :+: (fun t -> mapTransform (rewrite :+: rewrite :+: undefined) (subterms t)) :+: undefined)
+
+
+   (subterms (Let (Def "x" (Bop "*" (Var "c") (Var "d"))) (Bop "+" (Var "a") (Var "b"))))
+
+
+-}
+
+    print $ applyTransform (rr $ (rewrite :: Expr -> Expr) :+: (rewrite :: Def -> Def) :+: undefined) t
+    print $ applyTransform (rewrite'' t $ (rewrite :: Expr -> Expr) :+: (rewrite :: Def -> Def) :+: undefined) t
     putStrLn ""
+
 {-
     print $ gfold t []
     putStrLn ""
@@ -326,3 +425,4 @@ test =
     putStrLn "mapPolyForm"
     print $ mapPolyForm rename (Cons (Var "a") (Cons (Def "b" (Var "a")) Nil)) renaming -}
 -}
+
