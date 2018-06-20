@@ -1,0 +1,69 @@
+                        <Syntax.hs>
+
+Г -> t -> Г             fv :: term -> [var term]
+Г -> t -> Г             fv :: goal_x -> [var goal_x]
+
+                        <Eval.hs>
+
+                        subst = [(var term_s, term_s)]
+                        gamma = (
+                                 name -> (name, [name], goal_x)),
+                                 ([var term_x], var term_x -> term_s),
+                                 [var term_s]
+                                )
+
+Г -> (t, t) -> Г        unify :: subst? -> term_s -> term_s -> subst?
+
+Г -> t -> t             substitute :: subst -> term_s -> term_s
+Г -> t -> t             substitute :: subst -> goal_s -> goal_s
+Г -> t -> t             substitute :: subst -> [goal_s] -> [goal_s]
+
+Г -> t -> t'            interpret :: (var term_x -> var term_s) -> term_x -> term_s
+
+Г -> t -> Г'            pre_eval :: gamma -> goal_x -> (goal_s, gamma, var goal_s)
+
+Г -> t -> t             post_eval :: [var goal_x] -> goal_x -> goal_x
+
+Г -> t -> Г'            eval :: gamma -> sigma -> goal_s -> ] (sigma, delta) [
+
+                        <Driving.hs>
+
+Г -> (t, t) -> Г        rename :: goal_s -> goal_s -> renaming?
+Г -> (t, t) -> Г        rename :: renaming? -> term -> term -> renaming?
+Г -> (t, t) -> Г        rename :: renaming? -> [goal_s] -> [goal_s] -> renaming?
+
+Г -> (t, t) -> Г        embed  :: term_s -> term_s -> bool
+Г -> (t, t) -> Г        embed  :: [term_s] -> [term_s] -> bool
+Г -> (t, t) -> Г        embed  :: [goal_s] -> [goal_s] -> bool
+Г -> (t, t) -> Г        couple :: [goal_s] -> [goal_s] -> bool
+Г -> (t, t) -> Г        dive   :: [goal_s] -> [goal_s] -> bool
+
+Г -> (t, t) -> Г'       generalize :: [var goal_s] -> (generalizer, generalizer)
+                                   -> [goal_s] -> [goal_s] -> ([goal_s], generalizer, generalizer, [var goal_s])
+
+Г -> t -> t             substitute :: sigma -> goal_s -> goal_s
+
+                        split :: [zeta] -> [goal_s] -> ([zeta, zeta])
+
+                        invoke :: TreeContext -> Stack -> E.Delta -> E.Sigma -> Generalizer -> [Zeta] -> (TreeContext, Tree, E.Delta)
+
+                        eval :: TreeContext -> Stack -> E.Delta -> E.Sigma -> Generalizer -> [Zeta] -> Zeta -> [Zeta]  -> (TreeContext, Tree, E.Delta)
+
+                        unfold :: TreeContext -> Stack -> E.Delta -> E.Sigma -> Generalizer -> [Zeta] -> (TreeContext, Tree, E.Delta)
+
+                        drive :: G X -> (TreeContext, Tree, [Id])
+
+                        <Residualize.hs>
+                        simp :: goal -> goal
+                        residualize :: tree~ -> (goal, [string])
+
+
+                        <show-like stuff>
+Г -> t -> Г             ocanren :: term -> string
+Г -> t -> Г             ocanren :: goal -> string
+
+Г -> t -> Г             show :: term -> string
+Г -> t -> Г             show :: goal -> string
+
+Г -> t -> Г             dot :: term -> string
+Г -> t -> Г             dot :: goal -> string
