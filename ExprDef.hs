@@ -54,6 +54,9 @@ simplBop = rewrite (simpl :+: id :+: undefined)
         simpl (Bop "*" l (Const 1)) = l
         simpl e                     = e
 
+instance FreeVars Def
+instance FreeVars Expr
+
 sb expr = sb' expr (simplBop expr)
   where sb' prev curr | prev == curr = curr
         sb' _    curr = sb' curr (simplBop curr)
@@ -61,34 +64,21 @@ sb expr = sb' expr (simplBop expr)
 fv :: Expr -> [Var Expr]
 fv e = fold (shallowFv :+: shallowFv :+: undefined) e []
 
-fv' e = fold makeFv e []
-
 foldish e = fold ((\e a -> case e of Var x -> x : a ; _ -> a) :+: (\ d a -> case d of Def x _ -> x `delete` a ) :+: undefined) e []
+
+t  = Bop "+" (Var "a")  (Let (Def "b" (Bop "+" (Bop "*" (Const 1) (Const 7)) (Const 0))) (Bop "+" (Const 6) (Var "b")))
+
+runTest f = do
+  print f
+  putStrLn ""
 
 test :: IO ()
 test =
   do
-    let t = Bop "+" (Var "a")  (Let (Def "b" (Bop "+" (Bop "*" (Const 1) (Const 7)) (Const 0))) (Bop "+" (Const 6) (Var "b")))
-    print t
-    putStrLn ""
-
-    print $ flipBop t
-    putStrLn ""
-
-    print $ simplBop t
-    putStrLn ""
-
-    print $ sb t
-    putStrLn ""
-
-    print $ foldish t
-    putStrLn ""
-
-    print $ fv t
-    putStrLn ""
-
-    print $ fv' t
-    putStrLn ""
-
-    print $ freeVars t
-    putStrLn ""
+    runTest t
+    runTest $ flipBop t
+    runTest $ simplBop t
+    runTest $ sb t
+    runTest $ foldish t
+    runTest $ fv t
+    runTest $ freeVars t

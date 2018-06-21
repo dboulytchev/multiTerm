@@ -27,8 +27,9 @@ class Term t where
   binder    :: t -> Maybe (Var t)
   subterms  :: t -> HeteroList (Sub t)
   make      :: t -> HeteroList (Sub t) -> t
-  shallowFv :: (Eq (Var t)) => t -> [Var t] -> [Var t]
 
+class Term t => FreeVars t where
+  shallowFv :: (Eq (Var t)) => t -> [Var t] -> [Var t]
   shallowFv t a = case var t of
                     Just  v -> v : a
                     Nothing -> case binder t of
@@ -133,12 +134,11 @@ instance (Term t, LiftFold (Sub t) (Sub t) c, MakeFolder (Sub t) (Sub t) c, Appl
     in applyUniform fs t acc
 
 
-
 class MakeFv u v where
   makeFv :: Uniform u ([v] -> [v])
 
 instance MakeFv U v where
   makeFv = undefined
 
-instance (Term a, v ~ Var a, Eq v, MakeFv b v) =>  MakeFv (a :|: b) v where
+instance (Term a, FreeVars a, v ~ Var a, Eq v, MakeFv b v) =>  MakeFv (a :|: b) v where
   makeFv = shallowFv :+: makeFv
