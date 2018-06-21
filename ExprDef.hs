@@ -57,6 +57,9 @@ simplBop = rewrite (simpl :+: id :+: undefined)
 instance FreeVars Def
 instance FreeVars Expr
 
+instance CAS Def
+instance CAS Expr
+
 sb expr = sb' expr (simplBop expr)
   where sb' prev curr | prev == curr = curr
         sb' _    curr = sb' curr (simplBop curr)
