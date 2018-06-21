@@ -42,7 +42,7 @@ class Term t => FreeVars t where
                 MakeFolder (Sub t) (Sub t) [Var t],
                 ApplyUniform (Sub t) t
               ) => t -> [Var t]
-  freeVars e = fold makeFv e []
+  freeVars e = nub $ fold makeFv e []
 
 
 class MakeCas u s where
@@ -177,7 +177,8 @@ class Term t => ShallowFold t c where
 
 instance (Term t, ApplyUniform (Sub t) t) => ShallowFold t c where
   shallowFold deep shallow t acc =
-    polyfoldr deep (subterms t) (applyUniform shallow t acc)
+    --polyfoldl deep (subterms t) (applyUniform shallow t acc)
+    applyUniform shallow t (polyfoldl deep (subterms t) acc)
 
 class MakeFolder t g c where
   makeFolder  :: LiftFolder t g c -> Uniform g (c -> c) -> Uniform g (c -> c) -> Uniform t (c -> c)
@@ -232,7 +233,7 @@ class Term t => ShallowWhatever t c where
 
 instance (Term t, ApplyPolyform (Sub t) t) => ShallowWhatever t c where
   shallowWhatever deep shallow t subst =
-    make (applyPolyform shallow t subst) (mapPolyForm deep (subterms t) subst)
+    make t {-(applyPolyform shallow t subst)-} (mapPolyForm deep (subterms t) subst)
 
 class MakeWhateverer t g c where
   makeWhateverer  :: LiftWhateverer t g c -> Polyform g c -> Polyform g c -> Polyform t c
