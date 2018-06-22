@@ -94,7 +94,7 @@ class (Term t, FreeVars t, MakeCas (Sub t) (CasSubst t), ApplyPolyform (Sub t) t
             LiftWhatever (Sub t) (Sub t) (CasSubst t),
             MakeWhateverer (Sub t) (Sub t) (CasSubst t)
           ) => t -> CasSubst t -> t
-  gcas = whatever makeCas -- applyPolyform (makeCas :: Polyform (Sub t) (CasSubst t))
+  gcas = whatever makeCas
 
   cas' :: ( MakeFv (Sub t) (Var t),
             Eq (Var t),
@@ -233,7 +233,7 @@ class Term t => ShallowWhatever t c where
 
 instance (Term t, ApplyPolyform (Sub t) t) => ShallowWhatever t c where
   shallowWhatever deep shallow t subst =
-    make t {-(applyPolyform shallow t subst)-} (mapPolyForm deep (subterms t) subst)
+    make t {-(applyPolyform shallow t subst)-} (mapPolyForm shallow (subterms t) subst)
 
 class MakeWhateverer t g c where
   makeWhateverer  :: LiftWhateverer t g c -> Polyform g c -> Polyform g c -> Polyform t c
