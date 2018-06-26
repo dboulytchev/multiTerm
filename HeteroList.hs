@@ -27,8 +27,11 @@ data HeteroList f = Nil
                   | forall a . ( Show a,
                                  ApplyUniform   f a,
                                  ApplyPolyform  f a,
-                                 ApplyTransform f a
+                                 ApplyTransform f a,
+                                 ApplyPairform  f a
                                ) => Cons a (HeteroList f)
+
+
 
 -- Polyfunction with uniform codomain
 {- (u = \Sigma t_i) -> \Pi (t_i -> c) -}
@@ -80,12 +83,30 @@ class ApplyPolyform f a where
 instance {-# OVERLAPPING #-} ApplyPolyform (a :|: c) a where
   applyPolyform (f :+: _) x b = f x b
 
-instance  {-# OVERLAPPABLE #-} ApplyPolyform y a => ApplyPolyform (x :|: y) a where
+instance {-# OVERLAPPABLE #-} ApplyPolyform y a => ApplyPolyform (x :|: y) a where
   applyPolyform (_ :+: g) x b = applyPolyform g x b
 
 instance Show (HeteroList f) where
   show Nil = "[]"
   show (Cons h t) = show h ++ " : " ++ show t
+
+
+
+type family Pairform u c = r | r -> u c where
+  Pairform (a :|: b) c = (a -> c -> (a, c)) :+: Pairform b c
+
+class ApplyPairform f a where
+  applyPairform :: Pairform f b -> a -> b -> (a, b)
+
+instance {-# OVERLAPPING #-} ApplyPairform (a :|: b) a where
+  applyPairform (f :+: _) t s = f t s
+
+instance {-# OVERLAPPABLE #-} ApplyPairform b c => ApplyPairform (a :|: b) c where
+  applyPairform (_ :+: g) t s = applyPairform g t s
+
+mapPairform :: Pairform u s -> HeteroList u -> s -> HeteroList u
+mapPairform _ Nil _ = Nil
+mapPairform f (Cons h t) s = Cons (fst $ applyPairform f h s) $ mapPairform f t s
 
 type family Eithery u = r | r -> u where
   Eithery (a :|: b) = Either a (Eithery b)

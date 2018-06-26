@@ -17,7 +17,6 @@ import Prelude hiding (foldl)
 import HeteroList
 import Data.List ((\\), nub, concat, delete)
 import Data.Maybe
-import Unsafe.Coerce
 
 class Term t where
   type Var t :: *
@@ -43,83 +42,6 @@ class Term t => FreeVars t where
                 ApplyUniform (Sub t) t
               ) => t -> [Var t]
   freeVars e = nub $ fold makeFv e []
-
-
-class MakeCas u s where
-  makeCas :: Polyform u s
-
-instance MakeCas U s where
-  makeCas = undefined
-
-instance (Term a,
-          CAS a,
-          MakeCas b s,
-          s ~ (CasSubst a),
-          MakeFv (Sub a) (Var a),
-          Eq (Var a),
-          LiftFold (Sub a) (Sub a) [Var a],
-          MakeFolder (Sub a) (Sub a) [Var a],
-          ApplyUniform (Sub a) a,
-          ApplyPolyform (Sub a) a,
-          LiftWhatever (Sub a) (Sub a) (CasSubst a),
-          MakeWhateverer (Sub a) (Sub a) (CasSubst a)
-        ) =>  MakeCas (a :|: b) s where
-  makeCas = cas' :+: makeCas
-
-type family CasSubst t = r | r -> t where
-  CasSubst t = ([Var t], Var t -> t, [Var t])
-
-class (Term t, FreeVars t, MakeCas (Sub t) (CasSubst t), ApplyPolyform (Sub t) t )
-           => CAS t where
-  freshVar :: [Var t] -> (Var t, t)
-  rename :: t -> Var t -> t
-  cas :: ( MakeFv (Sub t) (Var t),
-           Eq (Var t),
-           LiftFold (Sub t) (Sub t) [Var t],
-           MakeFolder (Sub t) (Sub t) [Var t],
-           ApplyUniform (Sub t) t,
-           ApplyPolyform (Sub t) t,
-           LiftWhatever (Sub t) (Sub t) (CasSubst t),
-           MakeWhateverer (Sub t) (Sub t) (CasSubst t)
-         ) => t -> Var t -> t -> t
-  cas t x a = cas' t (singleton x a)
-    where
-      singleton x a = ([x], update empty x a, freeVars a)
-      empty _ = undefined
-      update f x a y = if x == y then a else f y
-
-
-  gcas :: (
-            ApplyPolyform (Sub t) t,
-            LiftWhatever (Sub t) (Sub t) (CasSubst t),
-            MakeWhateverer (Sub t) (Sub t) (CasSubst t)
-          ) => t -> CasSubst t -> t
-  gcas = whatever makeCas
-
-  cas' :: ( MakeFv (Sub t) (Var t),
-            Eq (Var t),
-            LiftFold (Sub t) (Sub t) [Var t],
-            MakeFolder (Sub t) (Sub t) [Var t],
-            ApplyUniform (Sub t) t,
-            ApplyPolyform (Sub t) t,
-            LiftWhatever (Sub t) (Sub t) (CasSubst t),
-            MakeWhateverer (Sub t) (Sub t) (CasSubst t)
-          ) => t -> CasSubst t -> t
-  cas' t ss@(dom, s, fvs) =
-    case var t of
-      Just v -> if elem v dom then s v else t
-      _      -> case binder t of
-                  Nothing -> gcas t ss
-                  Just x -> if elem x dom
-                            then gcas t (dom \\ [x], s, fvs)
-                            else if elem x fvs
-                                 then let (v, z) = freshVar (x : fvs) :: (Var t, t) in
-                                      gcas (rename t v) (x : dom, update s x z, v : fvs)
-                                 else gcas t ss
-    where
-      update f x a y = if x == y then a else f y
-      extend (dom, s, fvs) x a = (nub x:dom, update s x a, nub $ (freeVars a ++ fvs))
-
 
 
 type family ShallowRewriter t g = r | r -> t g where
@@ -221,48 +143,3 @@ instance MakeFv U v where
 
 instance (Term a, FreeVars a, v ~ Var a, Eq v, MakeFv b v) =>  MakeFv (a :|: b) v where
   makeFv = shallowFv :+: makeFv
-
-
-
-
-type family ShallowWhateverer t g c = r | r -> t g c where
-  ShallowWhateverer t g c = Polyform g c -> Polyform g c -> t -> c -> t
-
-class Term t => ShallowWhatever t c where
-  shallowWhatever :: ShallowWhateverer t (Sub t) c
-
-instance (Term t, ApplyPolyform (Sub t) t) => ShallowWhatever t c where
-  shallowWhatever deep shallow t subst =
-    make t {-(applyPolyform shallow t subst)-} (mapPolyForm shallow (subterms t) subst)
-
-class MakeWhateverer t g c where
-  makeWhateverer  :: LiftWhateverer t g c -> Polyform g c -> Polyform g c -> Polyform t c
-
-instance MakeWhateverer U g c where
-  makeWhateverer _ _ _ = undefined
-
-instance (Term a, MakeWhateverer b g c) => MakeWhateverer (a :|: b) g c where
-  makeWhateverer (t :+: q) a b =
-    let f = t a b in
-    let g = makeWhateverer q a b in
-    f :+: g
-
-type family LiftWhateverer t g c = r | r -> t g c where
-  LiftWhateverer (a :|: b) g c = ShallowWhateverer a g c :+: LiftWhateverer b g c
-
-class LiftWhatever t g c where
-  liftWhatever :: LiftWhateverer t g c
-
-instance LiftWhatever U g c where
-  liftWhatever = undefined
-
-instance (Term a, g ~ Sub a, ApplyPolyform g a, LiftWhatever b g c) => LiftWhatever (a :|: b) g c where
-  liftWhatever = shallowWhatever :+: liftWhatever
-
-class Term t => Whatever t c where
-  whatever :: Polyform (Sub t) c -> t -> c -> t
-
-instance (Term t, LiftWhatever (Sub t) (Sub t) c, MakeWhateverer (Sub t) (Sub t) c, ApplyPolyform (Sub t) t) => Whatever t c where
-  whatever shallow t subst =
-    let fs = makeWhateverer liftWhatever fs shallow
-    in applyPolyform fs t subst

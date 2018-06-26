@@ -10,8 +10,8 @@ module Lambda where
 
 import MultiTerm
 import HeteroList
-import Debug.Trace
 import Data.List ((\\))
+import Cas
 
 data Lambda = Var String | Abs String Lambda | App Lambda Lambda deriving (Eq)
 
@@ -67,8 +67,6 @@ expr_1 = App (Var "y") id_
 
 test subj var obj = do
   putStrLn $ "[ " ++ show obj  ++ " / " ++ var ++ " ] " ++ show subj
-  putStrLn $ show (freeVars subj)
-  putStrLn $ show (freeVars obj)
   putStrLn $ show (cas subj var obj)
   putStrLn "==================================================================="
 
@@ -77,6 +75,7 @@ testLambda = do
   test expr_0 "x" $ expr_1
   test const_ "y" $ Var "x"
   test const_ "x" $ const_
+  test (App (Var "x") (Var "x")) "x" (Var "x")
   test const_ "y" $ const_
   test const_ "y" $ Var "a"
   test (Abs "x" (App (Var "x") (Var "z"))) "z" (Abs "y" (App (App (Var "x") (Var "y")) (Var "y")))
