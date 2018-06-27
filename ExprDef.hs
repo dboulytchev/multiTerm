@@ -45,9 +45,9 @@ instance Term Def where
 
   make (Def s _) subs = let ([e'] :+: [] :+: _) = reify subs in Def s e'
 
-flipBop = rewrite $ (\expr -> case expr of Bop b l r -> Bop b r l ; e -> e) :+: id :+: undefined
+flipBop = rewrite TopDown $ (\expr -> case expr of Bop b l r -> Bop b r l ; e -> e) :+: id :+: undefined
 
-simplBop = rewrite (simpl :+: id :+: undefined)
+simplBop = rewrite TopDown  (simpl :+: id :+: undefined)
   where simpl (Bop "+" (Const 0) r) = r
         simpl (Bop "+" l (Const 0)) = l
         simpl (Bop "*" (Const 1) r) = r
