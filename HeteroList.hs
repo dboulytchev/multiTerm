@@ -32,6 +32,13 @@ data HeteroList f = Nil
                                ) => Cons a (HeteroList f)
 
 
+heteroZipWith :: Uniform u (Uniform u c) -> HeteroList u -> HeteroList u -> [c]
+heteroZipWith f (Cons h t) (Cons h' t') = applyUniform (applyUniform f h) h' : heteroZipWith f t t'
+heteroZipWith _ _ _ = []
+
+heteroLength :: Num a => HeteroList u -> a
+heteroLength Nil = 0
+heteroLength (Cons h t) = 1 + heteroLength t
 
 -- Polyfunction with uniform codomain
 {- (u = \Sigma t_i) -> \Pi (t_i -> c) -}
@@ -47,6 +54,30 @@ instance {-# OVERLAPPING #-} ApplyUniform (a :|: c) a where
 
 instance  {-# OVERLAPPABLE #-} ApplyUniform y a => ApplyUniform (x :|: y) a where
   applyUniform (_ :+: g) x = applyUniform g x
+
+
+class Const u d where
+  uniConst :: d -> Uniform u d
+
+instance Const U d where
+  uniConst _ = undefined
+
+instance (Show a, Const b d) => Const (a :|: b) d where
+  uniConst d = (\_ -> d) :+: uniConst d
+
+
+class Update u t d where
+  update :: (t -> d) -> Uniform u d -> Uniform u d
+
+instance Update U t c where
+  update _ _ = undefined
+
+instance {-# OVERLAPPING #-} Update b a d => Update (a :|: b) a d where
+  update f (a :+: b) = f :+: b
+
+instance {-# OVERLAPPABLE #-} Update b c d => Update (a :|: b) c d where
+  update f (a :+: b) = a :+: update f b
+
 
 -- Composition for a polyfunction with uniform codomain
 class ComposeUniform f b c where

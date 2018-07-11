@@ -9,6 +9,7 @@ import HeteroList
 import MultiTerm
 import Data.List ((\\), nub, concat, delete)
 import Data.Maybe
+import Eq
 import Cas
 
 data Expr = Var String | Const Int | Bop String Expr Expr | Let Def Expr deriving (Show, Eq)
@@ -71,16 +72,29 @@ instance CAS Expr where
   freshVar vs = let v = head $ names \\ vs in (v, Var v)
     where names = (\ l -> l ++ [x ++ name | name <- names, x <- l]) $ map (:[]) ['a'..'z']
 
+instance Equalushko Expr where
+  equalushko (Var x)     (Var y)     = x == y
+  equalushko (Const n)   (Const m)   = n == m
+  equalushko (Bop b _ _) (Bop d _ _) = b == d
+  equalushko (Let _ _)   (Let _ _)   = True
+  equalushko  _           _          = False
+
+instance Equalushko Def where
+  equalushko (Def d _) (Def b _) = d == b
+
+instance Equal Expr
+instance Equal Def
+
 sb expr = sb' expr (simplBop expr)
   where sb' prev curr | prev == curr = curr
         sb' _    curr = sb' curr (simplBop curr)
 
 fv :: Expr -> [Var Expr]
-fv e = fold (shallowFv :+: shallowFv :+: undefined) e []
+fv e = fold BottomUp (shallowFv :+: shallowFv :+: undefined) e []
 
-foldish e = fold ((\e a -> case e of Var x -> x : a ; _ -> a) :+: (\ d a -> case d of Def x _ -> x `delete` a ) :+: undefined) e []
+foldish e = fold BottomUp ((\e a -> case e of Var x -> x : a ; _ -> a) :+: (\ d a -> case d of Def x _ -> x `delete` a ) :+: undefined) e []
 
-foldtest e = fold ((\e (e', a) -> case var e of Just v -> (Var (v ++ v), v:a); _ -> (e',a)) :+: (\d (d', a) -> (d', a)) :+: undefined) e (e, [] :: [String])
+foldtest e = fold BottomUp ((\e (e', a) -> case var e of Just v -> (Var (v ++ v), v:a); _ -> (e',a)) :+: (\d (d', a) -> (d', a)) :+: undefined) e (e, [] :: [String])
 
 equalStruct (Bop b l r, Bop b' l' r') | b == b' = equalStruct (l, l') && equalStruct (r, r')
 equalStruct (Const _, Const _) = True
@@ -104,6 +118,17 @@ t1 = Bop "+" (Var "x")  (Let (Def "y" (Bop "+" (Bop "*" (Const 13) (Const 42)) (
 t2 = Bop "+" (Var "x")  (Let (Def "y" (Bop "+" (Bop "*" (Const 13) (Const 42)) (Const 0))) (Bop "*" (Const 666) (Var "b")))
 t3 = Let (Def "y" (Bop "+" (Bop "*" (Const 13) (Const 42)) (Const 0))) (Bop "+" (Const 666) (Var "b"))
 
+s = Let (Def "x" (Const 1)) (Var "x")
+
+expr3 = Const 1
+expr4 = Const 2
+expr5 = Bop "+" (Var "x") (Var "x")
+expr6 = Bop "+" (Var "x") (Var "y")
+
+testeq e1 e2 = do
+  putStrLn $ show e1 ++ " ==\n" ++ show e2
+  putStrLn $ show $ equal e1 e2
+
 runTest f = do
   print f
   putStrLn ""
@@ -111,6 +136,13 @@ runTest f = do
 test :: IO ()
 test =
   do
+    testeq s s
+    testeq t t
+    testeq t t1
+    testeq t t2
+    testeq t t3
+    testeq t1 t2
+
     runTest t
     runTest $ foldtest t
     runTest $ flipBop t

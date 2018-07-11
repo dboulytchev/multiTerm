@@ -13,8 +13,9 @@ import Data.List ((\\))
 import Debug.Trace
 import HeteroList
 import Cas
+import Eq
 
-data Expr = Var String | Const Int | Bop String Expr Expr deriving Show
+data Expr = Var String | Const Int | Bop String Expr Expr deriving (Show, Eq)
 
 instance Term Expr where
   type Var Expr = String
@@ -42,6 +43,14 @@ instance CAS Expr where
   freshVar vs = let v = head $ names \\ vs in (v, Var v)
     where names = (\ l -> l ++ [x ++ name | name <- names, x <- l]) $ map (:[]) ['a'..'z']
 
+instance Equalushko Expr where
+  equalushko (Var x) (Var y) = x == y
+  equalushko (Const x) (Const y) = x == y
+  equalushko (Bop b _ _) (Bop c _ _) = b == c
+  equalushko _ _ = False
+
+instance Equal Expr
+
 elim0 t = case t of
             Bop "+" e (Const 0) -> e
             Bop "+" (Const 0) e -> e
@@ -66,10 +75,26 @@ vars t a = case t of
 expr1 = Bop "+" (Var "a") (Bop "+" (Bop "+" (Const 1) (Const 0)) (Bop "+" (Const 0) (Var "b")))
 expr2 = Bop "+" (Var "a") (Bop "+" (Bop "+" (Const 7) (Const 0)) (Bop "+" (Const 6) (Var "b")))
 
+expr3 = Const 1
+expr4 = Const 2
+expr5 = Bop "+" (Var "x") (Var "x")
+expr6 = Bop "+" (Var "x") (Var "y")
+
 subst subj v t = cas subj v t
 
+testeq e1 e2 = do
+  putStrLn $ show $ equal e1 e2 == (e1 == e2)
+  putStrLn ""
+
+
 test = do
-  putStrLn $ show expr1
+  testeq expr3 expr3
+  testeq expr3 expr6
+  testeq expr3 expr4
+  testeq expr5 expr5
+  testeq expr5 expr6
+
+  {-putStrLn $ show expr1
   putStrLn $ show expr2
 
   putStrLn $ show $ rewrite BottomUp (elim0 :+: undefined) expr1
@@ -87,4 +112,4 @@ test = do
   putStrLn $ show $ freeVars expr2
 
   putStrLn $ show $ subst expr1 "a" (Bop "+" (Var "a") (Const 4))
-  putStrLn $ show $ subst expr2 "b" (Bop "+" (Var "b") (Const 4))
+  putStrLn $ show $ subst expr2 "b" (Bop "+" (Var "b") (Const 4))-}
