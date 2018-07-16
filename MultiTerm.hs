@@ -47,18 +47,19 @@ class Term t => FreeVars t where
 
 
 type family ShallowRewriter t g = r | r -> t g where
-  ShallowRewriter t g = Transform g -> Transform g -> t -> t
+  ShallowRewriter t g = Polyform g () -> Polyform g () -> t -> () -> t
 
 class Term t => ShallowRewrite t where
   shallowRewrite :: Direction -> ShallowRewriter t (Sub t)
 
-instance (ApplyTransform (Sub t) t, Term t) => ShallowRewrite t where
-  shallowRewrite direction deep shallow t =
+instance (ApplyPolyform (Sub t) t, Term t) => ShallowRewrite t where
+  shallowRewrite direction deep shallow t () =
     case direction of
-      BottomUp -> let t' = make t (mapTransform deep (subterms t)) in
-                  applyTransform shallow t'
-      TopDown  -> let  t' = applyTransform shallow t in
-                  make t' $ mapTransform deep (subterms t')
+      BottomUp -> let t' = make t (mapPolyForm deep (subterms t) ()) in
+                  applyPolyform shallow t' ()
+      TopDown  -> let  t' = applyPolyform shallow t () in
+                  make t' $ mapPolyForm deep (subterms t') ()
+
 
 type family LiftRewriter t g = r | r -> t g where
   LiftRewriter (a :|: b) g = ShallowRewriter a g :+: LiftRewriter b g
@@ -66,34 +67,36 @@ type family LiftRewriter t g = r | r -> t g where
 class LiftRewrite t g where
   liftRewrite :: Direction -> LiftRewriter t g
 
-instance (Term a, g ~ Sub a, ApplyTransform (Sub a) a, LiftRewrite b g) => LiftRewrite (a :|: b) g where
+instance (Term a, g ~ Sub a, ApplyPolyform (Sub a) a, LiftRewrite b g) => LiftRewrite (a :|: b) g where
   liftRewrite d = shallowRewrite d :+: liftRewrite d
 
 instance LiftRewrite U g where
   liftRewrite _ = undefined
 
 class MakeRewriter t g where
-  makeRewriter :: LiftRewriter t g -> Transform g -> Transform g -> Transform t
+  makeRewriter :: LiftRewriter t g -> Polyform g () -> Polyform g () -> Polyform t ()
 
 instance MakeRewriter U g where
   makeRewriter _ _ _ = undefined
 
 instance (Term t, MakeRewriter q g) => MakeRewriter (t :|: q) g where
-  makeRewriter ((t :: ShallowRewriter t g) :+: (q :: LiftRewriter q g)) (a :: Transform g) (b :: Transform g) =
-    let f :: t -> t      = t a b              in
-    let g :: Transform q = makeRewriter q a b in
+  makeRewriter ((t :: ShallowRewriter t g) :+: (q :: LiftRewriter q g)) (a :: Polyform g ()) (b :: Polyform g ()) =
+    let f :: t -> () -> t  = t a b              in
+    let g :: Polyform q () = makeRewriter q a b in
     f :+: g
 
 class Term t => Rewrite t where -- t -- phantom parameter
   rewrite :: Direction -> Transform (Sub t) -> t -> t
 
-instance (Term t, LiftRewrite (Sub t) (Sub t), MakeRewriter (Sub t) (Sub t), ApplyTransform (Sub t) t) => Rewrite t where
+instance (Term t,
+          LiftRewrite (Sub t) (Sub t), MakeRewriter (Sub t) (Sub t),
+          ApplyPolyform (Sub t) t, ToPolyform (Sub t)) => Rewrite t where
   rewrite d shallow t =
+    let polyformed = toPolyform shallow in
     let fs = makeRewriter ((liftRewrite d  :: LiftRewriter (Sub t) (Sub t)))
-                          (fs :: Transform (Sub t))
-                          (shallow :: Transform (Sub t))
-    in applyTransform fs t
-
+                          (fs :: Polyform (Sub t) ())
+                          (polyformed :: Polyform (Sub t) ())
+    in applyPolyform fs t ()
 
 
 type family ShallowFolder t g c = r | r -> t g c where

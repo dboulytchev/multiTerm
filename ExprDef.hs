@@ -126,8 +126,7 @@ expr5 = Bop "+" (Var "x") (Var "x")
 expr6 = Bop "+" (Var "x") (Var "y")
 
 testeq e1 e2 = do
-  putStrLn $ show e1 ++ " ==\n" ++ show e2
-  putStrLn $ show $ equal e1 e2
+  putStrLn $ show $ equal e1 e2 == (e1 == e2)
 
 runTest f = do
   print f

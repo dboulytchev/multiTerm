@@ -94,7 +94,7 @@ test = do
   testeq expr5 expr5
   testeq expr5 expr6
 
-  {-putStrLn $ show expr1
+  putStrLn $ show expr1
   putStrLn $ show expr2
 
   putStrLn $ show $ rewrite BottomUp (elim0 :+: undefined) expr1
@@ -112,4 +112,4 @@ test = do
   putStrLn $ show $ freeVars expr2
 
   putStrLn $ show $ subst expr1 "a" (Bop "+" (Var "a") (Const 4))
-  putStrLn $ show $ subst expr2 "b" (Bop "+" (Var "b") (Const 4))-}
+  putStrLn $ show $ subst expr2 "b" (Bop "+" (Var "b") (Const 4))

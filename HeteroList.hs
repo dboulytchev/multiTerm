@@ -27,7 +27,6 @@ data HeteroList f = Nil
                   | forall a . ( Show a,
                                  ApplyUniform   f a,
                                  ApplyPolyform  f a,
-                                 ApplyTransform f a,
                                  ApplyPairform  f a
                                ) => Cons a (HeteroList f)
 
@@ -93,14 +92,19 @@ instance ComposeUniform fs b c => ComposeUniform (f :|: fs) b c where
 type family Transform u = r | r -> u where
   Transform (a :|: b) = (a -> a) :+: Transform b
 
-class ApplyTransform u a where
-  applyTransform :: Transform u -> a -> a
 
-instance {-# OVERLAPPING #-} ApplyTransform (a :|: b) a where
-  applyTransform (f :+: _) x = f x
+{-type family GrandSchemeOfThings arg = r | r -> arg where
+  GrandSchemeOfThings (Uniform u c) = Uniform u c -> Pairform u c
+-}
 
-instance {-# OVERLAPPABLE #-} ApplyTransform b c => ApplyTransform (a :|: b) c where
-  applyTransform (_ :+: f) x = applyTransform f x
+class ToPolyform u where
+  toPolyform :: Transform u -> Polyform u ()
+
+instance ToPolyform U where
+  toPolyform = undefined
+
+instance ToPolyform b => ToPolyform (a :|: b) where
+  toPolyform (f :+: g) = (\t () -> f t) :+: toPolyform g
 
 -- Polyfunction with uniform codomain
 {- (u = \Sigma t_i) -> \Pi (t_i -> c -> t_i) -}
@@ -208,10 +212,6 @@ polyfoldr f (Cons h t) acc = applyUniform f h (polyfoldr f t acc)
 mapPolyForm :: Polyform f c -> HeteroList f -> c -> HeteroList f
 mapPolyForm _ Nil _ = Nil
 mapPolyForm f (Cons h t) c = Cons (applyPolyform f h c) (mapPolyForm f t c)
-
-mapTransform :: Transform f -> HeteroList f -> HeteroList f
-mapTransform _ Nil = Nil
-mapTransform f (Cons h t) = Cons (applyTransform f h) (mapTransform f t)
 
 main :: IO ()
 main = do
