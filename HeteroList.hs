@@ -72,7 +72,7 @@ instance Update U t c where
   update _ _ = undefined
 
 instance {-# OVERLAPPING #-} Update b a d => Update (a :|: b) a d where
-  update f (a :+: b) = f :+: b
+  update f (_ :+: b) = f :+: b
 
 instance {-# OVERLAPPABLE #-} Update b c d => Update (a :|: b) c d where
   update f (a :+: b) = a :+: update f b
@@ -87,6 +87,17 @@ instance ComposeUniform U b c where
 
 instance ComposeUniform fs b c => ComposeUniform (f :|: fs) b c where
   composeUniform (f :+: fs) g = g . f :+: composeUniform fs g
+
+-- That's a pity we should create a whole type class for such operations
+class MergeUniforms u where
+  mergeUniforms :: Uniform u c -> Uniform u d -> (c -> d -> e) -> Uniform u e
+
+instance MergeUniforms U where
+  mergeUniforms _ _ _ = undefined
+
+instance MergeUniforms b => MergeUniforms (a :|: b) where
+  mergeUniforms (f :+: fs) (g :+: gs) merge =
+    (\s -> merge (f s) (g s)) :+: mergeUniforms fs gs merge
 
 -- A simple transformation polyfunction
 type family Transform u = r | r -> u where

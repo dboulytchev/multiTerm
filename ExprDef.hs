@@ -1,6 +1,7 @@
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE TypeOperators              #-}
 {-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
 
 module ExprDef where
 
@@ -11,6 +12,7 @@ import Data.List ((\\), nub, concat, delete)
 import Data.Maybe
 import Eq
 import Cas
+import Embed
 
 data Expr = Var String | Const Int | Bop String Expr Expr | Let Def Expr deriving (Show, Eq)
 data Def  = Def String Expr deriving (Show, Eq)
@@ -33,6 +35,26 @@ instance Term Expr where
   make (Bop b _ _) subs = let ([l', r'] :+: [] :+: _) = reify subs in Bop b l' r'
   make (Let _ _  ) subs = let ([e'] :+: [d'] :+: _)  = reify subs in Let d' e'
   make t           _    = t
+
+instance FlatEmbed Expr where
+  flatCouple t = flatCoupleExprExpr t :+: (\_ -> False) :+: undefined
+    where
+      flatCoupleExprExpr (Var _)     (Var _)     = True
+      flatCoupleExprExpr (Const i)   (Const j)   = i == j
+      flatCoupleExprExpr (Bop b _ _) (Bop d _ _) = b == d
+      flatCoupleExprExpr (Let _ _)   (Let _ _)   = True
+      flatCoupleExprExpr  _           _          = False
+
+  flatDiving _ = (\ _ -> False) :+: (\ _ -> False) :+: undefined
+
+instance FlatEmbed Def where
+  flatCouple t = (\_ -> False) :+: flatCoupleDefDef t :+: undefined
+    where
+      flatCoupleDefDef (Def _ _) (Def _ _) = True -- technically speaking this should be a constant function
+
+  flatDiving _ = (\ _ -> False) :+: (\ _ -> False) :+: undefined
+
+instance Embed Expr Expr
 
 instance Term Def where
   type Var Def = String
@@ -128,6 +150,9 @@ expr6 = Bop "+" (Var "x") (Var "y")
 testeq e1 e2 = do
   putStrLn $ show $ equal e1 e2 == (e1 == e2)
 
+testCoupling e1 e2 = do
+  putStrLn $ show e1 ++ " ⊴\n" ++ show e2 ++ "\n" ++ show (embed e1 e2)
+
 runTest f = do
   print f
   putStrLn ""
@@ -135,6 +160,14 @@ runTest f = do
 test :: IO ()
 test =
   do
+    testCoupling s s
+    testCoupling t t
+    testCoupling t t1
+    testCoupling t t2
+    testCoupling t t3
+    testCoupling t1 t2
+
+
     testeq s s
     testeq t t
     testeq t t1

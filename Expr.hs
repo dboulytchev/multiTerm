@@ -14,6 +14,7 @@ import Debug.Trace
 import HeteroList
 import Cas
 import Eq
+import Embed
 
 data Expr = Var String | Const Int | Bop String Expr Expr deriving (Show, Eq)
 
@@ -33,6 +34,18 @@ instance Term Expr where
   make t@(Var _  )  _   = t
   make t@(Const _)  _   = t
   make (Bop b _ _) subs = let ([l, r] :+: _) = reify subs in Bop b l r
+
+instance FlatEmbed Expr where
+  flatCouple t = flatCoupleExprExpr t :+: undefined
+    where
+      flatCoupleExprExpr (Var _)     (Var _)     = True
+      flatCoupleExprExpr (Const i)   (Const j)   = i == j
+      flatCoupleExprExpr (Bop b _ _) (Bop d _ _) = b == d
+      flatCoupleExprExpr  _           _          = False
+
+  flatDiving t = (\ s -> False) :+: undefined
+
+instance Embed Expr Expr
 
 instance FreeVars Expr
 

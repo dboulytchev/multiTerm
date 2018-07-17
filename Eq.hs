@@ -45,7 +45,7 @@ type family ShallowEqualer t u v = r | r -> t u v where
 class ShallowEqual t where
   shallowEqual :: ShallowEqualer t (Sub t) (Sub t)
 
-instance (Show t, ApplyUniform (Sub t) t, Term t) => ShallowEqual t where
+instance (ApplyUniform (Sub t) t, Term t) => ShallowEqual t where
   shallowEqual deep shallow t s =
     applyUniform (applyUniform shallow t) s &&
       (
@@ -60,7 +60,7 @@ class MakeEqualer n u v m where
 instance MakeEqualer U u v m where
   makeEqualer _ _ _ = undefined
 
-instance (Show a, MakeEqualer b u v m, Update m a Bool, Const m Bool) => MakeEqualer (a :|: b) u v m where
+instance (MakeEqualer b u v m, Update m a Bool, Const m Bool) => MakeEqualer (a :|: b) u v m where
   makeEqualer (p :+: q) a b =
     let f = \t -> update (p a b t) (uniConst False) in
     let g = makeEqualer q a b in
